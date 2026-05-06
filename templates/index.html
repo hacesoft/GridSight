@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FVE Viewer</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+:root{
+  --bg:#0f1117;--surf:#1a1d27;--surf2:#22263a;--surf3:#2a2f47;
+  --border:#2d3148;--text:#e2e4ef;--muted:#7a7f9a;--faint:#444a6a;
+  --blue:#4a9eff;--green:#4ecb71;--amber:#f5a623;--red:#f5524a;
+  --purple:#a78bfa;--cyan:#22d3ee;
+  --r:10px;--rs:6px;
+  --blue-a:rgba(74,158,255,.15);--green-a:rgba(78,203,113,.15);
+  --amber-a:rgba(245,166,35,.15);--purple-a:rgba(167,139,250,.15);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+a{color:var(--blue);text-decoration:none}
+
+/* ── Header ── */
+.header{background:var(--surf);border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100}
+.logo{font-size:17px;font-weight:600;color:var(--blue);white-space:nowrap}
+.logo small{color:var(--muted);font-size:12px;font-weight:400;margin-left:4px}
+.hspace{flex:1}
+
+/* ── Sidebar + Main ── */
+.layout{display:flex;height:calc(100vh - 52px)}
+.sidebar{width:260px;min-width:220px;background:var(--surf);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;gap:0;flex-shrink:0}
+.main{flex:1;overflow-y:auto;padding:18px 20px;min-width:0}
+
+/* ── Sidebar sections ── */
+.sb-section{padding:14px 16px;border-bottom:1px solid var(--border)}
+.sb-title{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:10px;font-weight:600}
+.nav-btn{width:100%;background:transparent;border:none;color:var(--muted);text-align:left;padding:7px 10px;border-radius:var(--rs);cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px}
+.nav-btn:hover{background:var(--surf2);color:var(--text)}
+.nav-btn.active{background:var(--surf3);color:var(--blue);font-weight:500}
+.nav-icon{width:16px;text-align:center;font-size:14px}
+
+/* ── Controls ── */
+select,input[type=date],input[type=text]{background:var(--surf2);border:1px solid var(--border);color:var(--text);border-radius:var(--rs);padding:5px 9px;font-size:12px;width:100%;outline:none}
+select:focus,input:focus{border-color:var(--blue)}
+.btn{display:inline-flex;align-items:center;gap:5px;background:var(--surf2);border:1px solid var(--border);color:var(--text);border-radius:var(--rs);padding:5px 12px;font-size:12px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--blue)}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:500}
+.btn.primary:hover{opacity:.85}
+.btn.danger{color:var(--red);border-color:var(--red)}
+.btn.active{background:var(--blue-a);border-color:var(--blue);color:var(--blue)}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+label{font-size:11px;color:var(--muted);margin-bottom:3px;display:block}
+.field{display:flex;flex-direction:column;gap:2px}
+
+/* ── Metrics ── */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.metric{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:13px 15px}
+.metric-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.metric-value{font-size:22px;font-weight:600;line-height:1}
+.metric-sub{font-size:10px;color:var(--muted);margin-top:4px}
+.metric-compare{font-size:11px;margin-top:3px}
+.up{color:var(--red)}
+.dn{color:var(--green)}
+
+/* ── Cards ── */
+.card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:14px}
+.card-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.card-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;flex:1}
+.chart-wrap{position:relative;width:100%}
+
+/* ── Chart type switcher ── */
+.type-sw{display:flex;gap:3px}
+.type-sw button{background:var(--surf2);border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer}
+.type-sw button.active{background:var(--blue-a);border-color:var(--blue);color:var(--blue)}
+
+/* ── Legend ── */
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.li{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);cursor:pointer;user-select:none}
+.li:hover{color:var(--text)}
+.li.hidden{opacity:.4}
+.ld{width:10px;height:10px;border-radius:2px}
+
+/* ── Quick range pills ── */
+.pills{display:flex;gap:4px;flex-wrap:wrap}
+.pill{background:var(--surf2);border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:3px 10px;font-size:11px;cursor:pointer;white-space:nowrap}
+.pill:hover{border-color:var(--blue);color:var(--text)}
+.pill.active{background:var(--blue-a);border-color:var(--blue);color:var(--blue)}
+
+/* ── File list ── */
+.file-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--rs);font-size:12px;border:1px solid var(--border);margin-bottom:6px;background:var(--surf2)}
+.file-item .fname{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-item .fmeta{color:var(--muted);font-size:10px;white-space:nowrap}
+
+/* ── Upload zone ── */
+.drop-zone{border:2px dashed var(--border);border-radius:var(--r);padding:28px;text-align:center;cursor:pointer;color:var(--muted);transition:.2s}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--blue);color:var(--text)}
+.drop-zone input{display:none}
+.drop-icon{font-size:32px;margin-bottom:10px}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:13px;transform:translateY(60px);opacity:0;transition:.3s;z-index:999;max-width:340px}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-color:var(--green);color:var(--green)}
+.toast.err{border-color:var(--red);color:var(--red)}
+
+/* ── Tabs ── */
+.tab-pane{display:none}.tab-pane.active{display:block}
+
+/* ── Settings form ── */
+.setting-row{display:flex;flex-direction:column;gap:3px;margin-bottom:12px}
+.setting-label{font-size:11px;color:var(--muted)}
+.setting-desc{font-size:10px;color:var(--faint);margin-top:2px}
+.toggle{display:flex;align-items:center;gap:8px}
+.toggle input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--blue)}
+
+/* Responsive */
+@media(max-width:800px){
+  .sidebar{display:none}
+  .main{padding:12px}
+  .metrics{grid-template-columns:1fr 1fr}
+}
+.hidden-ds{display:none}
+
+/* Loading */
+#loadingBar{position:fixed;top:0;left:0;height:2px;background:var(--blue);width:0;transition:width .3s;z-index:999}
+</style>
+</head>
+<body>
+<div id="loadingBar"></div>
+
+<div class="header">
+  <div class="logo">⚡ FVE Viewer <small>Linea / Victron</small></div>
+  <div class="hspace"></div>
+  <div id="rangeDisplay" style="font-size:12px;color:var(--muted)"></div>
+</div>
+
+<div class="layout">
+<!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
+<nav class="sidebar">
+  <div class="sb-section">
+    <div class="sb-title">Navigace</div>
+    <button class="nav-btn active" onclick="showPane('dashboard')"><span class="nav-icon">📊</span>Dashboard</button>
+    <button class="nav-btn" onclick="showPane('files')"><span class="nav-icon">📁</span>Soubory</button>
+    <button class="nav-btn" onclick="showPane('compare')"><span class="nav-icon">⚖️</span>Srovnání období</button>
+    <button class="nav-btn" onclick="showPane('settings')"><span class="nav-icon">⚙️</span>Nastavení</button>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-title">Časový rozsah</div>
+    <div style="margin-bottom:8px">
+      <div class="pills" id="quickPills">
+        <span class="pill" data-q="today">Dnes</span>
+        <span class="pill" data-q="week">Týden</span>
+        <span class="pill" data-q="month">Měsíc</span>
+        <span class="pill active" data-q="last30">30 dní</span>
+        <span class="pill" data-q="quarter">Kvartál</span>
+        <span class="pill" data-q="year">Rok</span>
+        <span class="pill" data-q="all">Vše</span>
+        <span class="pill" data-q="custom">Vlastní</span>
+      </div>
+    </div>
+    <div id="customDates" style="display:none;margin-top:8px">
+      <div class="field" style="margin-bottom:6px">
+        <label>Od</label>
+        <input type="date" id="dateFrom" value="{{ date_min }}" onchange="onCustomDate()">
+      </div>
+      <div class="field">
+        <label>Do</label>
+        <input type="date" id="dateTo" value="{{ date_max }}" onchange="onCustomDate()">
+      </div>
+    </div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-title">Seskupení</div>
+    <div class="pills" id="groupPills">
+      <span class="pill" data-g="15min">15 min</span>
+      <span class="pill" data-g="hour">Hodina</span>
+      <span class="pill active" data-g="day">Den</span>
+      <span class="pill" data-g="week">Týden</span>
+      <span class="pill" data-g="month">Měsíc</span>
+    </div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-title">Vrstvy</div>
+    <div class="toggle" style="margin-bottom:6px">
+      <input type="checkbox" id="layerGrid" checked onchange="reloadData()">
+      <label for="layerGrid" style="font-size:12px;color:var(--text);margin:0;cursor:pointer">📡 Odběr / Dodávka</label>
+    </div>
+    <div class="toggle" style="margin-bottom:6px">
+      <input type="checkbox" id="layerVictron" onchange="reloadData()">
+      <label for="layerVictron" style="font-size:12px;color:var(--text);margin:0;cursor:pointer">☀️ Victron / FVE výkon</label>
+    </div>
+    <div class="toggle">
+      <input type="checkbox" id="layerBalance" checked onchange="toggleBalanceChart()">
+      <label for="layerBalance" style="font-size:12px;color:var(--text);margin:0;cursor:pointer">⚡ Bilance</label>
+    </div>
+  </div>
+
+  <div class="sb-section" style="margin-top:auto">
+    <div style="font-size:10px;color:var(--faint);line-height:1.6">
+      Data: <span id="sbDataRange">–</span><br>
+      Záznamy: <span id="sbRecords">–</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
+<main class="main">
+
+<!-- ── DASHBOARD ── -->
+<div id="pane-dashboard" class="tab-pane active">
+
+  <!-- Metrics row -->
+  <div class="metrics" id="metricsRow">
+    <div class="metric">
+      <div class="metric-label">Odběr ze sítě</div>
+      <div class="metric-value" style="color:var(--blue)" id="mSpotreba">—</div>
+      <div class="metric-sub" id="mSpotrebaSub"></div>
+      <div class="metric-compare" id="mSpotrebaComp"></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Dodávka do sítě (FVE přebytek)</div>
+      <div class="metric-value" style="color:var(--green)" id="mDodavka">—</div>
+      <div class="metric-sub" id="mDodavkaSub"></div>
+      <div class="metric-compare" id="mDodavkaComp"></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Max. výkon odběr</div>
+      <div class="metric-value" style="color:var(--amber)" id="mMaxSp">—</div>
+      <div class="metric-sub">peak 15min</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Max. výkon FVE</div>
+      <div class="metric-value" style="color:var(--green)" id="mMaxDo">—</div>
+      <div class="metric-sub">peak 15min</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Vlastní spotřeba FVE est.</div>
+      <div class="metric-value" style="color:var(--purple)" id="mSelfSuf">—</div>
+      <div class="metric-sub">odhad ze smart metru</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Dní v přebytku</div>
+      <div class="metric-value" style="color:var(--cyan)" id="mSurpDays">—</div>
+      <div class="metric-sub">dodávka &gt; odběr</div>
+    </div>
+  </div>
+
+  <!-- Main chart: odběr + dodávka -->
+  <div class="card" id="cardMain">
+    <div class="card-header">
+      <div class="card-title">Odběr ze sítě / Dodávka FVE</div>
+      <div class="type-sw" id="swMain">
+        <button class="active" onclick="setChartType('main','bar',this)">▮▮</button>
+        <button onclick="setChartType('main','line',this)">↗</button>
+        <button onclick="setChartType('main','area',this)">◭</button>
+      </div>
+    </div>
+    <div class="legend" id="legMain">
+      <div class="li" data-chart="main" data-idx="0"><div class="ld" style="background:var(--blue)"></div>Odběr (DCC0)</div>
+      <div class="li" data-chart="main" data-idx="1"><div class="ld" style="background:var(--green)"></div>Dodávka FVE (DSC0)</div>
+    </div>
+    <div class="chart-wrap" style="height:280px"><canvas id="chartMain"></canvas></div>
+  </div>
+
+  <!-- Victron chart -->
+  <div class="card" id="cardVictron" style="display:none">
+    <div class="card-header">
+      <div class="card-title">Victron – výkon FVE + baterie</div>
+      <div class="type-sw" id="swVictron">
+        <button onclick="setChartType('victron','bar',this)">▮▮</button>
+        <button class="active" onclick="setChartType('victron','line',this)">↗</button>
+        <button onclick="setChartType('victron','area',this)">◭</button>
+      </div>
+    </div>
+    <div class="legend" id="legVictron">
+      <div class="li" data-chart="victron" data-idx="0"><div class="ld" style="background:var(--amber)"></div>PV výkon (W)</div>
+      <div class="li" data-chart="victron" data-idx="1"><div class="ld" style="background:var(--green)"></div>Zátěž (W)</div>
+      <div class="li" data-chart="victron" data-idx="2"><div class="ld" style="background:var(--purple)"></div>Baterie SOC (%)</div>
+    </div>
+    <div class="chart-wrap" style="height:260px"><canvas id="chartVictron"></canvas></div>
+  </div>
+
+  <!-- Balance chart -->
+  <div class="card" id="cardBalance">
+    <div class="card-header">
+      <div class="card-title">Denní bilance (odběr − dodávka) · záporné = čistý vývozce</div>
+      <div class="type-sw" id="swBalance">
+        <button class="active" onclick="setChartType('balance','bar',this)">▮▮</button>
+        <button onclick="setChartType('balance','line',this)">↗</button>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:200px"><canvas id="chartBalance"></canvas></div>
+  </div>
+
+  <!-- Hourly profile -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Průměrný hodinový profil</div>
+      <div class="type-sw" id="swHourly">
+        <button onclick="setChartType('hourly','bar',this)">▮▮</button>
+        <button class="active" onclick="setChartType('hourly','line',this)">↗</button>
+        <button onclick="setChartType('hourly','area',this)">◭</button>
+      </div>
+    </div>
+    <div class="legend" id="legHourly">
+      <div class="li" data-chart="hourly" data-idx="0"><div class="ld" style="background:var(--blue)"></div>Odběr průměr</div>
+      <div class="li" data-chart="hourly" data-idx="1"><div class="ld" style="background:var(--green)"></div>FVE průměr</div>
+    </div>
+    <div class="chart-wrap" style="height:220px"><canvas id="chartHourly"></canvas></div>
+  </div>
+
+</div><!-- /dashboard -->
+
+<!-- ── FILES ── -->
+<div id="pane-files" class="tab-pane">
+  <div class="card">
+    <div class="card-header"><div class="card-title">Nahrát soubory</div></div>
+    <div class="drop-zone" id="dropZone"
+         onclick="document.getElementById('fileInput').click()"
+         ondragover="ev.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="handleDrop(event)">
+      <input type="file" id="fileInput" accept=".xlsx,.csv" multiple onchange="uploadFiles(this.files)">
+      <div class="drop-icon">📂</div>
+      <div>Přetáhněte <strong>REP_DATA_*.xlsx</strong> nebo <strong>victron_*.csv</strong></div>
+      <div style="font-size:11px;margin-top:6px">Více souborů najednou · nová data se doplní do DB</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">Importované soubory</div><button class="btn" onclick="loadFileList()">↻ Obnovit</button></div>
+    <div id="fileList"><div style="color:var(--muted);font-size:12px">Načítám…</div></div>
+  </div>
+</div>
+
+<!-- ── COMPARE ── -->
+<div id="pane-compare" class="tab-pane">
+  <div class="card">
+    <div class="card-header"><div class="card-title">Srovnání dvou období</div></div>
+    <div class="row">
+      <div class="field" style="flex:1">
+        <label>Období A – od</label><input type="date" id="cmpA1">
+      </div>
+      <div class="field" style="flex:1">
+        <label>Období A – do</label><input type="date" id="cmpA2">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field" style="flex:1">
+        <label>Období B – od</label><input type="date" id="cmpB1">
+      </div>
+      <div class="field" style="flex:1">
+        <label>Období B – do</label><input type="date" id="cmpB2">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field" style="flex:1">
+        <label>Seskupení</label>
+        <select id="cmpGroup">
+          <option value="day">Den</option>
+          <option value="week">Týden</option>
+          <option value="month">Měsíc</option>
+          <option value="hour">Hodina</option>
+        </select>
+      </div>
+      <button class="btn primary" onclick="runCompare()" style="margin-top:16px">Porovnat ↗</button>
+    </div>
+  </div>
+
+  <div id="compareResults" style="display:none">
+    <div class="metrics" id="cmpMetrics"></div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Odběr – srovnání</div>
+        <div class="type-sw" id="swCmpSp">
+          <button class="active" onclick="setChartType('cmpSp','bar',this)">▮▮</button>
+          <button onclick="setChartType('cmpSp','line',this)">↗</button>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:260px"><canvas id="chartCmpSp"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Dodávka FVE – srovnání</div>
+        <div class="type-sw" id="swCmpDo">
+          <button class="active" onclick="setChartType('cmpDo','bar',this)">▮▮</button>
+          <button onclick="setChartType('cmpDo','line',this)">↗</button>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:260px"><canvas id="chartCmpDo"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SETTINGS ── -->
+<div id="pane-settings" class="tab-pane">
+  <div class="card">
+    <div class="card-header"><div class="card-title">Nastavení</div></div>
+
+    <div class="setting-row">
+      <div class="setting-label">Sledovaná složka (auto-import)</div>
+      <input type="text" id="setWatchFolder" placeholder="/volume1/download/eon_reports">
+      <div class="setting-desc">Flask každých 60 s kontroluje složku a importuje nové REP_DATA_*.xlsx automaticky</div>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-label">EAN / číslo odběrného místa</div>
+      <input type="text" id="setEan" placeholder="859182400212009995">
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-label">Výchozí typ grafu – denní</div>
+      <select id="setChartDaily"><option value="bar">Sloupcový</option><option value="line">Křivka</option><option value="area">Plocha</option></select>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">Výchozí typ grafu – hodinový profil</div>
+      <select id="setChartHourly"><option value="bar">Sloupcový</option><option value="line">Křivka</option><option value="area">Plocha</option></select>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">Výchozí typ grafu – 15min raw</div>
+      <select id="setChartRaw"><option value="bar">Sloupcový</option><option value="line">Křivka</option></select>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-label">Victron Node-RED CSV formát nápověda</div>
+      <div class="setting-desc" style="background:var(--surf2);border-radius:var(--rs);padding:8px;font-size:11px;line-height:1.7;color:var(--text)">
+        CSV musí mít hlavičku. Podporované názvy sloupců:<br>
+        <code>ts</code> nebo <code>timestamp</code> – čas (ISO nebo DD.MM.YYYY HH:MM:SS)<br>
+        <code>pv_power</code> nebo <code>pv</code> – výkon FVE (W)<br>
+        <code>batt_soc</code> nebo <code>soc</code> – stav baterie (%)<br>
+        <code>batt_power</code> – výkon baterie (W, +nabíjení/-vybíjení)<br>
+        <code>load_power</code> nebo <code>load</code> – spotřeba (W)<br>
+        <code>grid_power</code> nebo <code>grid</code> – výkon sítě (W)
+      </div>
+    </div>
+
+    <button class="btn primary" onclick="saveSettings()">💾 Uložit nastavení</button>
+  </div>
+</div>
+
+</main>
+</div><!-- /layout -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ─────────────────────────────────────────────
+   State
+──────────────────────────────────────────────*/
+const state = {
+  tsFrom: null, tsTo: null,
+  group: 'day',
+  chartTypes: { main:'bar', victron:'line', balance:'bar', hourly:'line',
+                cmpSp:'bar', cmpDo:'bar' },
+  hiddenDatasets: {},
+  data: null,
+  settings: {}
+};
+const charts = {};
+
+/* ─────────────────────────────────────────────
+   Init
+──────────────────────────────────────────────*/
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadSettings();
+  applySettings();
+  const range = await fetch('/api/range').then(r=>r.json());
+  if (range.min) {
+    document.getElementById('dateFrom').value = range.min.substring(0,10);
+    document.getElementById('dateTo').value   = range.max.substring(0,10);
+    document.getElementById('sbDataRange').textContent = range.min.substring(0,7) + ' – ' + range.max.substring(0,7);
+  }
+  setQuick('last30');
+  loadFileList();
+  // legend click
+  document.querySelectorAll('.li').forEach(el => {
+    el.addEventListener('click', () => toggleLegend(el));
+  });
+});
+
+/* ─────────────────────────────────────────────
+   Pane navigation
+──────────────────────────────────────────────*/
+function showPane(name) {
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('pane-'+name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'files') loadFileList();
+}
+
+/* ─────────────────────────────────────────────
+   Time range helpers
+──────────────────────────────────────────────*/
+function setQuick(q) {
+  document.querySelectorAll('.pill[data-q]').forEach(p=>p.classList.toggle('active', p.dataset.q===q));
+  document.getElementById('customDates').style.display = q==='custom' ? '' : 'none';
+  if (q==='custom') return;
+
+  const now = new Date();
+  const today = now.toISOString().substring(0,10);
+  let from, to = today;
+
+  if (q==='today') { from=today; }
+  else if (q==='week') { const d=new Date(now); d.setDate(d.getDate()-6); from=d.toISOString().substring(0,10); }
+  else if (q==='month') { from=today.substring(0,7)+'-01'; }
+  else if (q==='last30') { const d=new Date(now); d.setDate(d.getDate()-29); from=d.toISOString().substring(0,10); }
+  else if (q==='quarter') { const d=new Date(now); d.setDate(d.getDate()-89); from=d.toISOString().substring(0,10); }
+  else if (q==='year') { from=today.substring(0,4)+'-01-01'; }
+  else if (q==='all') { from='2000-01-01'; to='2099-12-31'; }
+
+  state.tsFrom = from+'T00:00:00';
+  state.tsTo   = to  +'T23:59:59';
+  document.getElementById('rangeDisplay').textContent = from + ' – ' + to;
+  reloadData();
+}
+
+function setGroup(g) {
+  state.group = g;
+  document.querySelectorAll('.pill[data-g]').forEach(p=>p.classList.toggle('active', p.dataset.g===g));
+  reloadData();
+}
+
+function onCustomDate() {
+  const f = document.getElementById('dateFrom').value;
+  const t = document.getElementById('dateTo').value;
+  if (!f||!t) return;
+  state.tsFrom = f+'T00:00:00';
+  state.tsTo   = t+'T23:59:59';
+  document.getElementById('rangeDisplay').textContent = f + ' – ' + t;
+  reloadData();
+}
+
+// pill click events
+document.querySelectorAll('.pill[data-q]').forEach(p=>p.addEventListener('click', ()=>setQuick(p.dataset.q)));
+document.querySelectorAll('.pill[data-g]').forEach(p=>p.addEventListener('click', ()=>setGroup(p.dataset.g)));
+
+/* ─────────────────────────────────────────────
+   Data loading
+──────────────────────────────────────────────*/
+async function reloadData() {
+  if (!state.tsFrom) return;
+  setLoading(true);
+  try {
+    const url = `/api/data?from=${state.tsFrom}&to=${state.tsTo}&group=${state.group}`;
+    state.data = await fetch(url).then(r=>r.json());
+    renderDashboard(state.data);
+  } catch(e) { toast('Chyba načítání: '+e.message,'err'); }
+  setLoading(false);
+}
+
+/* ─────────────────────────────────────────────
+   Dashboard render
+──────────────────────────────────────────────*/
+function renderDashboard(data) {
+  const t = data.totals || {};
+
+  // Metrics
+  const sp = t.spotreba||0, do_=t.dodavka||0;
+  setText('mSpotreba', sp.toFixed(1)+' kWh');
+  setText('mSpotrebaSub', t.days ? (sp/t.days).toFixed(2)+' kWh/den avg' : '');
+  setText('mDodavka',  do_.toFixed(1)+' kWh');
+  setText('mDodavkaSub', t.days ? (do_/t.days).toFixed(2)+' kWh/den avg' : '');
+  setText('mMaxSp', (t.max_sp||0).toFixed(2)+' kW');
+  setText('mMaxDo', (t.max_do||0).toFixed(2)+' kW');
+  const sf = do_ > 0 ? (100 - do_/(sp+do_)*100).toFixed(0)+'%' : '–';
+  setText('mSelfSuf', sf);
+
+  const grid = data.grid||[];
+  const surplus = grid.filter(r=>r.dodavka>r.spotreba).length;
+  setText('mSurpDays', surplus + (state.group==='day' ? ' dní' : ''));
+  setText('sbRecords', grid.length + ' záznamů');
+
+  // Charts
+  drawMainChart(grid);
+  drawBalanceChart(grid);
+  drawHourlyChart(data.hourly||[]);
+
+  const vict = data.victron||[];
+  const hasV = vict.length>0 && document.getElementById('layerVictron').checked;
+  document.getElementById('cardVictron').style.display = hasV ? '' : 'none';
+  if (hasV) drawVictronChart(vict);
+}
+
+/* ─────────────────────────────────────────────
+   Chart drawing
+──────────────────────────────────────────────*/
+function mkLabels(data) {
+  if (!data.length) return [];
+  const key = data[0].period ?? data[0].ts;
+  return data.map(r => r.period ?? r.ts ?? '');
+}
+
+function chartType(key) {
+  const t = state.chartTypes[key]||'bar';
+  return t==='area' ? 'line' : t;
+}
+
+function fillArea(key, idx) {
+  if ((state.chartTypes[key]||'bar') !== 'area') return false;
+  const hidKey = key+'-'+idx;
+  return !(state.hiddenDatasets[hidKey]);
+}
+
+function drawChart(id, datasets, labels, opts={}) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  charts[id] = new Chart(ctx, {
+    type: chartType(id.replace('chart','')),
+    data: { labels, datasets },
+    options: {
+      responsive:true, maintainAspectRatio:false, animation:{duration:300},
+      plugins:{ legend:{display:false}, tooltip:{mode:'index',intersect:false,
+        callbacks:{ label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(3)} ${ctx.dataset.unit||''}` }
+      }},
+      scales:{
+        x:{ ticks:{color:'#7a7f9a',font:{size:10},maxRotation:45,autoSkip:true,maxTicksLimit:20},
+            grid:{color:'rgba(45,49,72,.6)'}},
+        y:{ ticks:{color:'#7a7f9a',font:{size:10}}, grid:{color:'rgba(45,49,72,.6)'},
+            title:{display:!!opts.yLabel, text:opts.yLabel||'', color:'#7a7f9a', font:{size:11}} },
+        ...(opts.y2 ? {y2:opts.y2} : {})
+      },
+      ...opts.extra
+    }
+  });
+  // restore hidden datasets
+  if (charts[id]) {
+    datasets.forEach((_,i) => {
+      const hk = id.replace('chart','')+'-'+i;
+      if (state.hiddenDatasets[hk]) charts[id].setDatasetVisibility(i,false);
+    });
+    charts[id].update();
+  }
+}
+
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+const C = { blue:'rgba(74,158,255,.8)', green:'rgba(78,203,113,.8)',
+            amber:'rgba(245,166,35,.8)', purple:'rgba(167,139,250,.8)',
+            cyan:'rgba(34,211,238,.8)', red:'rgba(245,82,74,.8)',
+            blueL:'rgba(74,158,255,.15)', greenL:'rgba(78,203,113,.15)',
+            amberL:'rgba(245,166,35,.12)', purpleL:'rgba(167,139,250,.12)' };
+
+function drawMainChart(grid) {
+  const labels = grid.map(r=>r.period??r.ts??'');
+  const sp = grid.map(r=>r.spotreba??r.DCC0??0);
+  const do_ = grid.map(r=>r.dodavka??r.DSC0??0);
+  const isLine = (state.chartTypes.main||'bar') !== 'bar';
+  const isArea = state.chartTypes.main === 'area';
+  const ds = [
+    { label:'Odběr (DCC0)', data:sp, unit:'kWh',
+      backgroundColor: isLine ? C.blueL : C.blue,
+      borderColor: C.blue, borderWidth: isLine?2:0,
+      fill: isArea, tension:.4, pointRadius:0, borderRadius:3 },
+    { label:'Dodávka FVE (DSC0)', data:do_, unit:'kWh',
+      backgroundColor: isLine ? C.greenL : C.green,
+      borderColor: C.green, borderWidth: isLine?2:0,
+      fill: isArea, tension:.4, pointRadius:0, borderRadius:3 }
+  ];
+  drawChart('chartMain', ds, labels, {yLabel:'kWh'});
+}
+
+function drawBalanceChart(grid) {
+  const labels = grid.map(r=>r.period??r.ts??'');
+  const bal = grid.map(r=>+((r.spotreba??0)-(r.dodavka??0)).toFixed(3));
+  const isLine = state.chartTypes.balance==='line';
+  const ds = [{ label:'Bilance', data:bal, unit:'kWh',
+    backgroundColor: bal.map(v => v>=0 ? C.amber : C.green),
+    borderColor: bal.map(v => v>=0 ? C.amber : C.green),
+    borderWidth: isLine?2:0, fill:false, tension:.4, pointRadius:0, borderRadius:3 }];
+  drawChart('chartBalance', ds, labels, {yLabel:'kWh'});
+}
+
+function drawHourlyChart(hourly) {
+  const labels = hourly.map(h=>h.hour+':00');
+  const isLine = (state.chartTypes.hourly||'line') !== 'bar';
+  const isArea = state.chartTypes.hourly === 'area';
+  const ds = [
+    { label:'Odběr', data:hourly.map(h=>h.avg_sp), unit:'kW',
+      backgroundColor: isLine ? C.blueL : C.blue,
+      borderColor:C.blue, borderWidth:isLine?2:0, fill:isArea, tension:.4, pointRadius:2, borderRadius:3 },
+    { label:'Dodávka FVE', data:hourly.map(h=>h.avg_do), unit:'kW',
+      backgroundColor: isLine ? C.greenL : C.green,
+      borderColor:C.green, borderWidth:isLine?2:0, fill:isArea, tension:.4, pointRadius:2, borderRadius:3 }
+  ];
+  drawChart('chartHourly', ds, labels, {yLabel:'kW (průměr)'});
+}
+
+function drawVictronChart(vict) {
+  const labels = vict.map(r=>r.period??r.ts??'');
+  const isLine = (state.chartTypes.victron||'line') !== 'bar';
+  const isArea = state.chartTypes.victron === 'area';
+  const ds = [
+    { label:'PV výkon (W)', data:vict.map(r=>r.pv_power), unit:'W',
+      backgroundColor: isLine ? C.amberL : C.amber,
+      borderColor:C.amber, borderWidth:isLine?2:0, fill:isArea, tension:.4, pointRadius:0, borderRadius:3,
+      yAxisID:'y' },
+    { label:'Zátěž (W)', data:vict.map(r=>r.load_power), unit:'W',
+      backgroundColor: isLine ? C.blueL : C.blue,
+      borderColor:C.blue, borderWidth:isLine?2:0, fill:false, tension:.4, pointRadius:0, borderRadius:3,
+      yAxisID:'y' },
+    { label:'SOC (%)', data:vict.map(r=>r.batt_soc), unit:'%',
+      backgroundColor:'transparent',
+      borderColor:C.purple, borderWidth:2, fill:false, tension:.4, pointRadius:0,
+      yAxisID:'y2' }
+  ];
+  drawChart('chartVictron', ds, labels, {
+    yLabel:'W',
+    y2:{ type:'linear', position:'right', min:0, max:100,
+         ticks:{color:'#7a7f9a',font:{size:10}},
+         grid:{drawOnChartArea:false},
+         title:{display:true,text:'SOC %',color:'#7a7f9a'} }
+  });
+}
+
+/* ─────────────────────────────────────────────
+   Chart type switching
+──────────────────────────────────────────────*/
+function setChartType(key, type, btn) {
+  state.chartTypes[key] = type;
+  const sw = document.getElementById('sw'+key.charAt(0).toUpperCase()+key.slice(1));
+  if (sw) sw.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b===btn));
+  // redraw
+  if (!state.data) return;
+  const d = state.data;
+  const g = d.grid||[];
+  if (key==='main') drawMainChart(g);
+  else if (key==='balance') drawBalanceChart(g);
+  else if (key==='hourly') drawHourlyChart(d.hourly||[]);
+  else if (key==='victron') drawVictronChart(d.victron||[]);
+  else if (key==='cmpSp'||key==='cmpDo') runCompare();
+}
+
+/* ─────────────────────────────────────────────
+   Legend toggle
+──────────────────────────────────────────────*/
+function toggleLegend(el) {
+  const chart = el.dataset.chart;
+  const idx = parseInt(el.dataset.idx);
+  const hk = chart+'-'+idx;
+  state.hiddenDatasets[hk] = !state.hiddenDatasets[hk];
+  el.classList.toggle('hidden', state.hiddenDatasets[hk]);
+  const ch = charts['chart'+chart.charAt(0).toUpperCase()+chart.slice(1)];
+  if (ch) { ch.setDatasetVisibility(idx, !state.hiddenDatasets[hk]); ch.update(); }
+}
+
+/* ─────────────────────────────────────────────
+   Toggle balance chart
+──────────────────────────────────────────────*/
+function toggleBalanceChart() {
+  document.getElementById('cardBalance').style.display =
+    document.getElementById('layerBalance').checked ? '' : 'none';
+}
+
+/* ─────────────────────────────────────────────
+   Compare
+──────────────────────────────────────────────*/
+async function runCompare() {
+  const a1=document.getElementById('cmpA1').value;
+  const a2=document.getElementById('cmpA2').value;
+  const b1=document.getElementById('cmpB1').value;
+  const b2=document.getElementById('cmpB2').value;
+  const g=document.getElementById('cmpGroup').value;
+  if (!a1||!a2||!b1||!b2) { toast('Vyplňte všechna data','err'); return; }
+
+  setLoading(true);
+  const [rA, rB] = await Promise.all([
+    fetch(`/api/data?from=${a1}T00:00:00&to=${a2}T23:59:59&group=${g}`).then(r=>r.json()),
+    fetch(`/api/data?from=${b1}T00:00:00&to=${b2}T23:59:59&group=${g}`).then(r=>r.json()),
+  ]);
+  setLoading(false);
+  document.getElementById('compareResults').style.display = '';
+
+  // Metrics comparison
+  const tA=rA.totals||{}, tB=rB.totals||{};
+  function diffHtml(a,b,unit) {
+    const d=b-a, p=a?((d/a)*100).toFixed(0):'—';
+    const cls=d>0?'up':'dn';
+    return `<span class="${cls}">${d>0?'▲':'▼'} ${Math.abs(d).toFixed(1)} ${unit} (${Math.abs(p)}%)</span>`;
+  }
+  document.getElementById('cmpMetrics').innerHTML = `
+    <div class="metric"><div class="metric-label">A – Odběr</div><div class="metric-value" style="color:var(--blue)">${(tA.spotreba||0).toFixed(1)} kWh</div><div class="metric-sub">${a1} – ${a2}</div></div>
+    <div class="metric"><div class="metric-label">B – Odběr</div><div class="metric-value" style="color:var(--cyan)">${(tB.spotreba||0).toFixed(1)} kWh</div><div class="metric-sub">${b1} – ${b2}</div><div class="metric-compare">${diffHtml(tA.spotreba||0,tB.spotreba||0,'kWh')}</div></div>
+    <div class="metric"><div class="metric-label">A – Dodávka FVE</div><div class="metric-value" style="color:var(--green)">${(tA.dodavka||0).toFixed(1)} kWh</div></div>
+    <div class="metric"><div class="metric-label">B – Dodávka FVE</div><div class="metric-value" style="color:var(--amber)">${(tB.dodavka||0).toFixed(1)} kWh</div><div class="metric-compare">${diffHtml(tA.dodavka||0,tB.dodavka||0,'kWh')}</div></div>
+  `;
+
+  // Shared labels by position (periods may differ in text)
+  const labA = rA.grid.map(r=>r.period??'');
+  const labB = rB.grid.map(r=>r.period??'');
+  const maxLen = Math.max(labA.length, labB.length);
+  const labels = Array.from({length:maxLen},(_,i)=>i+1);
+
+  const spA = rA.grid.map(r=>r.spotreba??0);
+  const spB = rB.grid.map(r=>r.spotreba??0);
+  const doA = rA.grid.map(r=>r.dodavka??0);
+  const doB = rB.grid.map(r=>r.dodavka??0);
+
+  const iBar = state.chartTypes.cmpSp==='bar';
+  destroyChart('chartCmpSp');
+  charts['chartCmpSp'] = new Chart(document.getElementById('chartCmpSp'),{
+    type: iBar?'bar':'line',
+    data:{ labels,
+      datasets:[
+        {label:`A (${a1}–${a2})`, data:spA, backgroundColor:C.blueL, borderColor:'rgba(74,158,255,.9)',borderWidth:iBar?0:2,fill:!iBar,tension:.4,pointRadius:0,borderRadius:3},
+        {label:`B (${b1}–${b2})`, data:spB, backgroundColor:C.purpleL, borderColor:C.purple,borderWidth:iBar?0:2,fill:false,tension:.4,pointRadius:0,borderRadius:3}
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:300},
+      plugins:{legend:{display:true,labels:{color:'#7a7f9a',font:{size:11}}}},
+      scales:{x:{ticks:{color:'#7a7f9a',font:{size:10}},grid:{color:'rgba(45,49,72,.6)'}},
+              y:{ticks:{color:'#7a7f9a',font:{size:10}},grid:{color:'rgba(45,49,72,.6)'},title:{display:true,text:'kWh',color:'#7a7f9a'}}}}
+  });
+  destroyChart('chartCmpDo');
+  charts['chartCmpDo'] = new Chart(document.getElementById('chartCmpDo'),{
+    type: state.chartTypes.cmpDo==='bar'?'bar':'line',
+    data:{ labels,
+      datasets:[
+        {label:`A (${a1}–${a2})`, data:doA, backgroundColor:C.greenL, borderColor:C.green,borderWidth:state.chartTypes.cmpDo==='bar'?0:2,fill:false,tension:.4,pointRadius:0,borderRadius:3},
+        {label:`B (${b1}–${b2})`, data:doB, backgroundColor:C.amberL, borderColor:C.amber,borderWidth:state.chartTypes.cmpDo==='bar'?0:2,fill:false,tension:.4,pointRadius:0,borderRadius:3}
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:300},
+      plugins:{legend:{display:true,labels:{color:'#7a7f9a',font:{size:11}}}},
+      scales:{x:{ticks:{color:'#7a7f9a',font:{size:10}},grid:{color:'rgba(45,49,72,.6)'}},
+              y:{ticks:{color:'#7a7f9a',font:{size:10}},grid:{color:'rgba(45,49,72,.6)'},title:{display:true,text:'kWh',color:'#7a7f9a'}}}}
+  });
+}
+
+/* ─────────────────────────────────────────────
+   File list
+──────────────────────────────────────────────*/
+async function loadFileList() {
+  const res = await fetch('/api/files').then(r=>r.json());
+  const el = document.getElementById('fileList');
+  if (!res.length) { el.innerHTML='<div style="color:var(--muted);font-size:12px">Žádné importované soubory</div>'; return; }
+  el.innerHTML = res.map(f=>`
+    <div class="file-item">
+      <div class="nav-icon">📄</div>
+      <div style="flex:1;overflow:hidden">
+        <div class="fname">${f.filename}</div>
+        <div style="font-size:10px;color:var(--muted)">${f.period_from?.substring(0,10)||''} – ${f.period_to?.substring(0,10)||''} · ${f.records} záznamů</div>
+      </div>
+      <div class="fmeta">${(f.imported_at||'').substring(0,16).replace('T',' ')}</div>
+      <button class="btn danger" onclick="deleteFile('${f.filename}')">✕</button>
+    </div>
+  `).join('');
+}
+
+async function deleteFile(fname) {
+  if (!confirm(`Smazat data ze souboru:\n${fname}?`)) return;
+  await fetch('/api/files/'+encodeURIComponent(fname), {method:'DELETE'});
+  toast('Smazáno: '+fname,'ok');
+  loadFileList();
+  reloadData();
+}
+
+/* ─────────────────────────────────────────────
+   Upload
+──────────────────────────────────────────────*/
+function handleDrop(ev) {
+  ev.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag');
+  uploadFiles(ev.dataTransfer.files);
+}
+
+async function uploadFiles(files) {
+  for (const f of files) {
+    const fd = new FormData();
+    fd.append('file', f);
+    const res = await fetch('/api/upload',{method:'POST',body:fd}).then(r=>r.json());
+    if (res.ok) { toast(`✓ ${res.filename} · ${res.records} záznamů`,'ok'); }
+    else toast('Chyba: '+(res.error||'?'),'err');
+  }
+  loadFileList();
+  reloadData();
+}
+
+/* ─────────────────────────────────────────────
+   Settings
+──────────────────────────────────────────────*/
+async function loadSettings() {
+  state.settings = await fetch('/api/settings').then(r=>r.json());
+  document.getElementById('setWatchFolder').value = state.settings.watch_folder||'';
+  document.getElementById('setEan').value = state.settings.ean||'';
+  document.getElementById('setChartDaily').value = state.settings.chart_type_daily||'bar';
+  document.getElementById('setChartHourly').value = state.settings.chart_type_hourly||'line';
+  document.getElementById('setChartRaw').value = state.settings.chart_type_raw||'line';
+}
+
+function applySettings() {
+  state.chartTypes.main = state.settings.chart_type_daily||'bar';
+  state.chartTypes.hourly = state.settings.chart_type_hourly||'line';
+}
+
+async function saveSettings() {
+  const data = {
+    watch_folder: document.getElementById('setWatchFolder').value,
+    ean: document.getElementById('setEan').value,
+    chart_type_daily: document.getElementById('setChartDaily').value,
+    chart_type_hourly: document.getElementById('setChartHourly').value,
+    chart_type_raw: document.getElementById('setChartRaw').value,
+  };
+  await fetch('/api/settings',{method:'POST',body:JSON.stringify(data),headers:{'Content-Type':'application/json'}});
+  state.settings = {...state.settings, ...data};
+  applySettings();
+  reloadData();
+  toast('Nastavení uloženo','ok');
+}
+
+/* ─────────────────────────────────────────────
+   Helpers
+──────────────────────────────────────────────*/
+function setText(id,val) { const e=document.getElementById(id); if(e) e.textContent=val; }
+function setLoading(on) {
+  const b=document.getElementById('loadingBar');
+  b.style.width=on?'70%':'100%';
+  if(!on) setTimeout(()=>b.style.width='0',400);
+}
+function toast(msg,type) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show '+(type||'');
+  setTimeout(()=>t.className='toast',3500);
+}
+</script>
+</body>
+</html>
