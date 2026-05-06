@@ -1,0 +1,2 @@
+# GridSight
+vizualizace energetické bilance
