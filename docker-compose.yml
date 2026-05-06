@@ -1,0 +1,13 @@
+services:
+  fve-viewer:
+    build: .
+    container_name: fve-viewer
+    restart: unless-stopped
+    ports:
+      - "5080:5000"
+    volumes:
+      - ./data:/data          # XLSX soubory + SQLite DB jsou tady
+    environment:
+      - DATA_DIR=/data
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
