@@ -44,6 +44,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+          # Cache pro pip (Python knihovny)
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('modbus/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       # ── Metadata pro PHP image ──────────────────────────────────
       - name: Metadata PHP image
         id: meta-php
@@ -55,6 +64,17 @@ jobs:
             type=semver,pattern={{version}}
             type=raw,value=latest,enable={{is_default_branch}}
 
+      # ── Cache PHP ──────────────────────────────────
+      - name: Cache APT (Debian)
+        uses: actions/cache@v3
+        with:
+          path: |
+            /var/lib/apt/lists/
+            /var/cache/apt/archives/
+          key: ${{ runner.os }}-apt-${{ hashFiles('Dockerfile') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+      
       # ── Build + push PHP image ──────────────────────────────────
       - name: Build & push PHP image
         uses: docker/build-push-action@v5
