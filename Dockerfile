@@ -7,7 +7,6 @@ LABEL org.opencontainers.image.source="https://github.com/hacesoft/GridSight"
 LABEL org.opencontainers.image.licenses="GPL-3.0"
 
 # ── PHP rozšíření ─────────────────────────────────────────────────
-# ── PHP rozšíření ─────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libsqlite3-dev \
         libpng-dev \
@@ -17,7 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
     && rm -rf /var/lib/apt/lists/* \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo_sqlite gd
+    && docker-php-ext-install pdo_sqlite gd zip
 
 # ── Composer ──────────────────────────────────────────────────────
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
