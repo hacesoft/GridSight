@@ -41,8 +41,8 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
+          registry: ghcr.io
+          username: hacesoft  
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Cache pip  # Cache pro pip (Python knihovny)
