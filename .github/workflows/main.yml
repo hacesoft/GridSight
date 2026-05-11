@@ -44,8 +44,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-          # Cache pro pip (Python knihovny)
-      - name: Cache pip
+      - name: Cache pip  # Cache pro pip (Python knihovny)
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
