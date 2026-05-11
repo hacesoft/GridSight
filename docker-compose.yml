@@ -1,13 +1,46 @@
 services:
-  fve-viewer:
-    build: .
-    container_name: fve-viewer
+
+  # ── PHP web aplikace ───────────────────────────────────────────
+  gridsight:
+    image: ghcr.io/hacesoft/gridsight:latest
+    # Pro lokální build ze zdrojů odkomentuj:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    container_name: gridsight
     restart: unless-stopped
     ports:
-      - "5080:5000"
+      - "${APP_PORT:-5080}:80"
     volumes:
-      - ./data:/data          # XLSX soubory + SQLite DB jsou tady
+      - ${DATA_PATH:-./data}:/data
     environment:
       - DATA_DIR=/data
+      - TZ=${TZ:-Europe/Prague}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/api.php?action=range"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
     labels:
-      - "com.centurylinklabs.watchtower.enable=false"
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # ── Python Modbus poller (Cerbo GX) ───────────────────────────
+  gridsight-modbus:
+    image: ghcr.io/hacesoft/gridsight-modbus:latest
+    # Pro lokální build:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile.modbus
+    container_name: gridsight-modbus
+    restart: unless-stopped
+    volumes:
+      - ${DATA_PATH:-./data}:/data   # sdílí SQLite DB s PHP kontejnerem
+    environment:
+      - DATA_DIR=/data
+      - TZ=${TZ:-Europe/Prague}
+    depends_on:
+      gridsight:
+        condition: service_healthy
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
