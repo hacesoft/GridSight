@@ -2,7 +2,8 @@
 
 Vizualizace energetické bilance FVE instalace — data ze **smart metru distributora** (ČEZ / EG.D / PRE) + **Victron Cerbo GX** přes Modbus TCP.
 
-![Actions](https://github.com/hacesoft/GridSight/actions/workflows/docker-publish.yml/badge.svg)
+[![Docker Hub](https://img.shields.io/docker/v/hacesoft/gridsight?label=Docker%20Hub)](https://hub.docker.com/r/hacesoft/gridsight)
+[![Docker Pulls](https://img.shields.io/docker/pulls/hacesoft/gridsight)](https://hub.docker.com/r/hacesoft/gridsight)
 
 ## Co umí
 
