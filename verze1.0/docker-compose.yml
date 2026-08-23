@@ -10,20 +10,23 @@ services:
     container_name: gridsight
     restart: unless-stopped
     ports:
-      - "${APP_PORT:-5080}:80"
+      - "5080:80"
     volumes:
-      - ${DATA_PATH:-./data}:/data
+      - gridsight-data:/data
+      - ./php:/var/www/html    
     environment:
       - DATA_DIR=/data
-      - TZ=${TZ:-Europe/Prague}
+      - TZ=Europe/Prague
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/api.php?action=range"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 20s
+      retries: 5
+      start_period: 40s
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - gridsight
 
   # ── Python Modbus poller (Cerbo GX) ───────────────────────────
   gridsight-modbus:
@@ -35,12 +38,23 @@ services:
     container_name: gridsight-modbus
     restart: unless-stopped
     volumes:
-      - ${DATA_PATH:-./data}:/data   # sdílí SQLite DB s PHP kontejnerem
+      - gridsight-data:/data   # sdílí SQLite DB s PHP kontejnerem
     environment:
       - DATA_DIR=/data
-      - TZ=${TZ:-Europe/Prague}
+      - TZ=Europe/Prague
+    # Cerbo host, port and polling interval are configured through the GridSight web UI
+    # and stored in the shared SQLite database, not in compose environment variables.
     depends_on:
-      gridsight:
-        condition: service_healthy
+      - gridsight
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - gridsight
+
+volumes:
+  gridsight-data:
+    driver: local
+
+networks:
+  gridsight:
+    driver: bridge
