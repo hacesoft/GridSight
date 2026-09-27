@@ -1,6 +1,0 @@
-{
-  "contract": "hc-shared-app-core-v1",
-  "requiredVersion": "0.18.0-dev.2",
-  "downloadUrl": "https://github.com/hacesoft/hc-shared-app-core/releases",
-  "requiredApiVersion": 1
-}
