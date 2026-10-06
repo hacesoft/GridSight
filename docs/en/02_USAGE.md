@@ -9,9 +9,11 @@
 - **ESS:** LINEA's published control state and settings. GridSight only displays them.
 - **Collection:** collector health, last write and database state.
 - **Event log:** the latest 100 recorded events.
-- **ANALYTICS:** outline of planned functions; this tab does not yet present calculated results.
+- **Analysis:** EG.D reports and details, contracts, prices, HDO, financial summaries and Delta Green statements.
 - **Settings:** LINEA URL, connection, refresh interval and per-user selection of visible history series. Hiding a series in Settings does not stop collecting it.
 
 The **House consumption** card in LIVE shows L1, L2 and L3 inverter temperatures from the current LINEA response when the source provides them. The history chart reads separately stored five-minute intervals. LIVE can therefore show a temperature while the selected historical range has no recorded temperature yet. The legend shows only curves with historical data; old records are not filled in. Schema `1` does not define a separate battery temperature field, so GridSight does not present Rack as the battery cell temperature. “—” means unavailable data. Zero can be a valid value, but LINEA may convert some missing inputs to zero, so it does not prove a physical measurement by itself.
 
 The layout uses Shared App Core. On a phone, zoomed content and charts can be panned; chart size adapts to available width. **Refresh** in the top toolbar reloads the active tab.
+
+History ranges: 1/6/24 hours, 7/30 days, today, yesterday, rolling 3/6/12 months, current half-year/year, rolling two years and all retained data. Current year starts January 1; rolling 12 months count backwards from now. Current half-year starts January 1 or July 1. Calendar boundaries use GMT+1 in winter / GMT+2 in summer.

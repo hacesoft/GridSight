@@ -34,3 +34,5 @@ echo json_encode([
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PHP_EOL;
 PHP
 ```
+
+One baseline migration, `Version009000Date20261006090000`, creates the initial public schema. Nextcloud runs it during app installation/update. The installer additionally checks the schema when retrying an interrupted installation. Existing measurements are preserved. No manual `migrations:migrate` command is required.

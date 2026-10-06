@@ -34,3 +34,5 @@ echo json_encode([
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PHP_EOL;
 PHP
 ```
+
+Výchozí databázi vytváří jediná migrace `Version009000Date20261006090000`. Nextcloud ji spouští při instalaci/aktualizaci aplikace. Instalační skript navíc ověří schéma i při opakování přerušené instalace. Existující měření se nemažou. Nevyžaduje se ruční příkaz `migrations:migrate`.

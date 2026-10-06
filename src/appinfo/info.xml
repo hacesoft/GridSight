@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>hc_gridsight</id>
+    <name>GridSight</name>
+    <namespace>HcGridSight</namespace>
+    <summary>LINEA monitoring with ED.G electricity analysis.</summary>
+    <description>Nextcloud 35 monitor of the read-only LINEA API and its own history. Includes an explicit SPOT threshold chart and user-managed ED.G monthly measurements, tariff schedules and electricity cost analysis. Never sends plant-control commands. Uses Shared App Core for the common application interface.</description>
+    <version>0.9.1</version>
+    <licence>AGPL-3.0-or-later</licence>
+    <author homepage="https://github.com/hacesoft">hacesoft</author>
+    <category>monitoring</category>
+    <category>tools</category>
+    <website>https://github.com/hacesoft/nextcloud-linea-monitor</website>
+    <bugs>https://github.com/hacesoft/nextcloud-linea-monitor/issues</bugs>
+    <repository>https://github.com/hacesoft/nextcloud-linea-monitor</repository>
+    <dependencies>
+        <php min-version="8.3"/>
+        <nextcloud min-version="35" max-version="35"/>
+    </dependencies>
+    <background-jobs>
+        <job>OCA\HcGridSight\BackgroundJob\CollectorWatchdogJob</job>
+    </background-jobs>
+    <navigations>
+        <navigation>
+            <name>GridSight</name>
+            <namespace>HcGridSight</namespace>
+            <route>hc_gridsight.page.index</route>
+            <order>30</order>
+            <icon>app.svg</icon>
+        </navigation>
+    </navigations>
+</info>

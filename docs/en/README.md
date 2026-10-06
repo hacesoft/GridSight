@@ -10,3 +10,4 @@ Its technical app ID is `hc_gridsight`. It requires enabled Shared App Core `>= 
 2. [Using GridSight](02_USAGE.md)
 3. [Data and history](03_DATA_AND_HISTORY.md)
 4. [Daily SPOT calculation](04_SPOT.md)
+5. [Electricity analysis and ED.G import](05_ELECTRICITY_ANALYSIS.md)
