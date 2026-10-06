@@ -633,10 +633,10 @@ function renderAnalysis(){
  renderStoredAnalysisProfile(data.profile||{});
  setText('lm-report-detail-title',t(APP,'ED.G report')+' '+(data.selectedPeriod||'—'));
  const imports=$('lm-analysis-imports');
- imports.innerHTML=(data.reports||[]).length?`<div class="lm-analysis-table-wrap"><table class="lm-analysis-table"><thead><tr><th>Výběr</th><th>Měsíc</th><th>EAN</th><th>Odběr</th><th>Dodávka</th><th>Intervaly</th><th>Importováno</th><th></th></tr></thead><tbody>${data.reports.map(r=>`<tr><td><input type="checkbox" data-report-select value="${esc(r.period)}" aria-label="${esc(r.period)}"></td><td>${esc(r.period)} <button type="button" data-report-open="${esc(r.period)}">${esc(t(APP,'Open detail'))}</button></td><td>${esc(r.ean)}</td><td>${energy(r.importKWh)}</td><td>${energy(r.exportKWh)}</td><td>${r.rows}</td><td>${esc(new Date(r.importedAt*1000).toLocaleString())}</td><td>${analysisCanConfigure?`<button type="button" data-report-delete="${esc(r.period)}">Odstranit</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:esc(t(APP,'No reports stored yet.'));
+ imports.innerHTML=(data.reports||[]).length?`<div class="lm-analysis-table-wrap"><table class="lm-analysis-table"><thead><tr><th>${esc(t(APP,'Selection'))}</th><th>${esc(t(APP,'Month'))}</th><th>EAN</th><th>${esc(t(APP,'Grid import'))}</th><th>${esc(t(APP,'Grid export'))}</th><th>${esc(t(APP,'Intervals'))}</th><th>${esc(t(APP,'Imported'))}</th><th></th></tr></thead><tbody>${data.reports.map(r=>`<tr><td><input type="checkbox" data-report-select value="${esc(r.period)}" aria-label="${esc(r.period)}"></td><td>${esc(r.period)} <button type="button" data-report-open="${esc(r.period)}">${esc(t(APP,'Open detail'))}</button></td><td>${esc(r.ean)}</td><td>${energy(r.importKWh)}</td><td>${energy(r.exportKWh)}</td><td>${r.rows}</td><td>${esc(new Date(r.importedAt*1000).toLocaleString())}</td><td>${analysisCanConfigure?`<button type="button" data-report-delete="${esc(r.period)}">${esc(t(APP,'Remove'))}</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:esc(t(APP,'No reports stored yet.'));
  const sales=$('lm-sale-list');
  const saleForm=$('lm-sale-form');if(saleForm)for(const input of saleForm.querySelectorAll('input,button'))input.disabled=!analysisCanConfigure;
- if(sales)sales.innerHTML=`<div class="lm-analysis-table-wrap"><table class="lm-analysis-table"><thead><tr><th>Období</th><th>Doklad</th><th>Skutečná platba</th><th>Hrubý SPOT</th><th>Rozdíl</th><th>Pokrytí</th><th>Dodávka ED.G</th><th></th></tr></thead><tbody>${(data.statements||[]).map(r=>`<tr><td>${esc(r.from)} – ${esc(r.to)}</td><td>${esc(r.document)}<br>${esc(r.saleEan)}</td><td>${money(r.amountCzk)}</td><td>${r.spotCzk===null?'—':money(r.spotCzk)}</td><td>${r.differenceCzk===null?'—':money(r.differenceCzk)}</td><td>${r.coveragePct}%</td><td>${r.distributorExportKWh===null?'—':energy(r.distributorExportKWh)}</td><td>${analysisCanConfigure?`<button type="button" data-sale-edit="${esc(r.id)}">Upravit</button><button type="button" data-sale-delete="${esc(r.id)}">Odstranit</button>`:''}</td></tr>`).join('')}</tbody></table></div>`;
+ if(sales)sales.innerHTML=`<div class="lm-analysis-table-wrap"><table class="lm-analysis-table"><thead><tr><th>${esc(t(APP,'Period'))}</th><th>${esc(t(APP,'Document'))}</th><th>${esc(t(APP,'Actual payment'))}</th><th>${esc(t(APP,'Gross SPOT'))}</th><th>${esc(t(APP,'Difference'))}</th><th>${esc(t(APP,'Coverage'))}</th><th>${esc(t(APP,'ED.G export'))}</th><th></th></tr></thead><tbody>${(data.statements||[]).map(r=>`<tr><td>${esc(r.from)} – ${esc(r.to)}</td><td>${esc(r.document)}<br>${esc(r.saleEan)}</td><td>${money(r.amountCzk)}</td><td>${r.spotCzk===null?'—':money(r.spotCzk)}</td><td>${r.differenceCzk===null?'—':money(r.differenceCzk)}</td><td>${r.coveragePct}%</td><td>${r.distributorExportKWh===null?'—':energy(r.distributorExportKWh)}</td><td>${analysisCanConfigure?`<button type="button" data-sale-edit="${esc(r.id)}">${esc(t(APP,'Edit'))}</button><button type="button" data-sale-delete="${esc(r.id)}">${esc(t(APP,'Remove'))}</button>`:''}</td></tr>`).join('')}</tbody></table></div>`;
 
  const host=$('lm-analysis-summary'),dailyHost=$('lm-analysis-days'),dayPicker=$('lm-analysis-day');
  if(!month){host.innerHTML='<div class="lm-card lm-empty">'+esc(t(APP,'Import the first ED.G monthly report to see measurements.'))+'</div>';dailyHost.innerHTML='—';dayPicker.innerHTML='';renderAnalysisDay();return;}
@@ -685,16 +685,16 @@ function bindAnalysis(){
   const opened=event.target.closest('[data-report-open]')?.dataset.reportOpen;
   if(opened){await loadAnalysis(opened);if(analysisData?.selectedPeriod===opened){$('lm-report-details').hidden=false;for(const el of $('lm-report-details').querySelectorAll('details'))el.open=true;$('lm-report-details').scrollIntoView({block:'start',behavior:'smooth'});}return;}
   const period=event.target.closest('[data-report-delete]')?.dataset.reportDelete;
-  if(!period||!analysisCanConfigure||!confirm('Odstranit importovaný report '+period+'? Historie LINEA zůstane zachována.'))return;
+  if(!period||!analysisCanConfigure||!confirm(t(APP,'Remove imported report {period}? LINEA history will be kept.').replace('{period}',period)))return;
   try{await api('/api/analysis/report/'+encodeURIComponent(period),{method:'DELETE'});await loadAnalysis();}
   catch(e){setText('lm-analysis-import-state',e.message);}
  },{signal:oLifetime.signal});
  $('lm-report-export')?.addEventListener('click',async()=>{
   const periods=Array.from(document.querySelectorAll('[data-report-select]:checked')).map(el=>el.value);
-  if(!periods.length){setText('lm-analysis-import-state','Vyberte alespoň jeden report.');return;}
+  if(!periods.length){setText('lm-analysis-import-state',t(APP,'Select at least one report.'));return;}
   try{
    const response=await fetch(OC.generateUrl('/apps/'+APP+'/api/analysis/export'),{method:'POST',headers:{'Content-Type':'application/json',requesttoken:OC.requestToken},body:JSON.stringify({periods}),signal:oLifetime.signal});
-   if(!response.ok){const err=await response.json();throw new Error(err.error||'Export selhal.');}
+   if(!response.ok){const err=await response.json();throw new Error(err.error||t(APP,'Export failed.'));}
    const url=URL.createObjectURL(await response.blob()),link=document.createElement('a');link.href=url;link.download='gridsight-reports.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }catch(e){setText('lm-analysis-import-state',e.message);}
  },{signal:oLifetime.signal});
@@ -703,14 +703,14 @@ function bindAnalysis(){
  saleForm?.addEventListener('submit',async event=>{
   event.preventDefault();if(!analysisCanConfigure)return;
   const statement=Object.fromEntries(new FormData(saleForm));
-  try{await api('/api/analysis/statement',{method:'POST',body:JSON.stringify({statement})});saleForm.reset();setText('lm-sale-state','Vyúčtování uloženo.');await loadAnalysis(analysisData?.selectedPeriod||'');}
+  try{await api('/api/analysis/statement',{method:'POST',body:JSON.stringify({statement})});saleForm.reset();setText('lm-sale-state',t(APP,'Statement saved.'));await loadAnalysis(analysisData?.selectedPeriod||'');}
   catch(e){setText('lm-sale-state',e.message);}
  },{signal:oLifetime.signal});
  $('lm-sale-list')?.addEventListener('click',async event=>{
   const edit=event.target.closest('[data-sale-edit]')?.dataset.saleEdit,del=event.target.closest('[data-sale-delete]')?.dataset.saleDelete;
   if(!analysisCanConfigure)return;
   if(edit){const row=analysisData.statements.find(r=>r.id===edit);for(const key of ['id','from','to','amountCzk','saleEan','document'])saleForm.elements.namedItem(key).value=row[key];saleForm.scrollIntoView({block:'nearest'});}
-  if(del&&confirm('Odstranit vyúčtování?'))try{await api('/api/analysis/statement/'+del,{method:'DELETE'});await loadAnalysis(analysisData?.selectedPeriod||'');}catch(e){setText('lm-sale-state',e.message);}
+  if(del&&confirm(t(APP,'Delete statement?')))try{await api('/api/analysis/statement/'+del,{method:'DELETE'});await loadAnalysis(analysisData?.selectedPeriod||'');}catch(e){setText('lm-sale-state',e.message);}
  },{signal:oLifetime.signal});
  $('lm-analysis-month')?.addEventListener('change',event=>void loadAnalysis(event.target.value),{signal:oLifetime.signal});
  $('lm-analysis-day')?.addEventListener('change',renderAnalysisDay,{signal:oLifetime.signal});

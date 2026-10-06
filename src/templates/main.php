@@ -266,11 +266,11 @@ Util::addScript(Application::APP_ID, 'app-0.9.1');
             <article class="lm-card lm-history-events-card"><div class="lm-card-head"><div><h3><?php p($l->t('Event log')); ?></h3><small><?php p($l->t('Last 100 state changes, independent of the chart range.')); ?></small></div><span class="lm-help-tip" tabindex="0" title="<?php p($l->t('Changes of important states captured while storing history: UPS, smoke, stale data and selected ESS states.')); ?>">?</span></div><div id="lm-history-events" class="lm-event-list"><div class="lm-empty"><?php p($l->t('No events yet.')); ?></div></div></article>
         </section>
         <section id="lm-tab-analysis" class="lm-tab-panel">
-            <nav class="lm-analysis-actions" aria-label="Analýza">
-              <button type="button" data-analysis-pane="reports">Reporty ED.G</button>
-              <button type="button" data-analysis-pane="contracts">Smlouvy a ceny</button>
-              <button type="button" data-analysis-pane="hdo">Nastavení HDO</button>
-              <button type="button" data-analysis-pane="results">Analýza</button>
+            <nav class="lm-analysis-actions" aria-label="<?php p($l->t('Analysis')); ?>">
+              <button type="button" data-analysis-pane="reports"><?php p($l->t('ED.G reports')); ?></button>
+              <button type="button" data-analysis-pane="contracts"><?php p($l->t('Contracts and prices')); ?></button>
+              <button type="button" data-analysis-pane="hdo"><?php p($l->t('HDO settings')); ?></button>
+              <button type="button" data-analysis-pane="results"><?php p($l->t('Analysis')); ?></button>
               <button type="button" data-analysis-pane="sales">Delta Green</button>
             </nav><div data-analysis-view="reports">
             <section class="lm-card lm-analytics-intro"><div class="lm-card-head"><h3>📥 <?php p($l->t('Data for electricity analysis')); ?></h3><span class="lm-pill">ED.G · HDO</span></div><p><?php p($l->t('Import measurements and save contracts, total tariffs and HDO schedules here. Calculations are on the Analysis tab.')); ?></p></section>
@@ -282,7 +282,7 @@ Util::addScript(Application::APP_ID, 'app-0.9.1');
                 </div>
                 <input id="lm-analysis-file" type="file" multiple accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
                 <p id="lm-analysis-import-state" class="lm-help" role="status"></p>
-                <button type="button" id="lm-report-export">Exportovat vybrané do ZIP</button><div id="lm-analysis-imports" class="lm-analysis-imports"></div>
+                <button type="button" id="lm-report-export"><?php p($l->t('Export selected to ZIP')); ?></button><div id="lm-analysis-imports" class="lm-analysis-imports"></div>
             </section>
             <section id="lm-report-details" hidden>
                 <h3 id="lm-report-detail-title"></h3>
@@ -321,16 +321,16 @@ Util::addScript(Application::APP_ID, 'app-0.9.1');
 
         </div>
         <section data-analysis-view="sales" class="lm-card" hidden>
-            <h3>Delta Green · vyúčtování prodeje</h3>
-            <p>Skutečná platba a hrubý výpočet SPOTu. Rozdíl může zahrnovat poplatky a podmínky výkupu. VT/NT se zde nerozlišuje.</p>
+            <h3><?php p($l->t('Delta Green · sale statements')); ?></h3>
+            <p><?php p($l->t('Actual payment compared with gross SPOT calculation. The difference may include fees and sale terms. VT/NT are not distinguished here.')); ?></p>
             <form id="lm-sale-form" class="lm-analysis-form">
                 <input name="id" type="hidden">
-                <label>Období od <input name="from" type="date" required></label>
-                <label>Období do (včetně) <input name="to" type="date" required></label>
-                <label>Celková platba Kč <input name="amountCzk" type="number" step="0.01" required></label>
-                <label>EAN výroby / prodeje <input name="saleEan" maxlength="18"></label>
-                <label>Číslo dokladu <input name="document" maxlength="80"></label>
-                <div><button type="submit">Uložit vyúčtování</button><button type="reset">Nový záznam</button></div>
+                <label><?php p($l->t('Period from')); ?> <input name="from" type="date" required></label>
+                <label><?php p($l->t('Period to (inclusive)')); ?> <input name="to" type="date" required></label>
+                <label><?php p($l->t('Total payment CZK')); ?> <input name="amountCzk" type="number" step="0.01" required></label>
+                <label><?php p($l->t('Production / sale EAN')); ?> <input name="saleEan" maxlength="18"></label>
+                <label><?php p($l->t('Document number')); ?> <input name="document" maxlength="80"></label>
+                <div><button type="submit"><?php p($l->t('Save statement')); ?></button><button type="reset"><?php p($l->t('New record')); ?></button></div>
             </form><p id="lm-sale-state" role="status"></p><div id="lm-sale-list"></div>
         </section></section>
         <section id="lm-tab-settings" class="lm-tab-panel">

@@ -44,3 +44,15 @@ Povinné Core je dostupné v [repozitáři Hacesoft Core](https://github.com/hac
 `sh build-release.sh` vytvoří ZIP se zdrojovým kódem, `install.sh`, `uninstall.sh` a CZ/EN dokumentací. Obsahuje pouze GridSight. Uživatelská měření, smlouvy, přístupové údaje ani importované XLSX nejsou součástí balíčku.
 
 Licence: AGPL-3.0-or-later, viz [LICENSE](LICENSE).
+
+## Jazykové mutace
+
+Rozhraní aplikace podporuje všech 11 jazyků: čeština (`cs`), angličtina (`en`), němčina (`de`), španělština (`es`), francouzština (`fr`), italština (`it`), nizozemština (`nl`), polština (`pl`), portugalština (`pt`), slovenština (`sk`) a ukrajinština (`uk`). Nepodporovaný jazyk i jednotlivý chybějící překlad používají angličtinu (EN). Katalogy obsahují shodnou úplnou sadu klíčů a zachovávají proměnné ve zprávách. Texty pocházející přímo ze serveru či komponent Core se řídí lokalizací těchto služeb. Návody a vývojová dokumentace jsou pouze CZ a EN.
+
+Při každé další úpravě aplikace se ověří jazyky proti společné sadě `cs`, `en`, `de`, `es`, `fr`, `it`, `nl`, `pl`, `pt`, `sk`, `uk`. Doplní se chybějící jazyky i překladové klíče, prověří se výběr jazyka podle Nextcloudu a aktualizuje seznam skutečně podporovaných jazyků. Přítomnost souboru není důkaz úplného překladu. Návody a vývojová dokumentace se vydávají pouze česky a anglicky.
+
+Kontrola překladů pro další vydání (Python 3 a Node.js):
+
+```sh
+python3 scripts/check-languages.py
+```

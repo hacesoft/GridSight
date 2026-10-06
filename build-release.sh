@@ -2,6 +2,10 @@
 set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 SRC="$ROOT/src"
+
+command -v python3 >/dev/null 2>&1 || { echo "ERROR: Python 3 is required for the release language audit." >&2; exit 1; }
+command -v node >/dev/null 2>&1 || { echo "ERROR: Node.js is required for the release language audit." >&2; exit 1; }
+python3 "$ROOT/scripts/check-languages.py"
 INFO="$SRC/appinfo/info.xml"
 [ -f "$INFO" ] || { echo "ERROR: Missing $INFO" >&2; exit 1; }
 command -v zip >/dev/null 2>&1 || { echo 'ERROR: zip is required.' >&2; exit 1; }

@@ -44,3 +44,15 @@ The required dependency is available in the [Hacesoft Core repository](https://g
 `sh build-release.sh` creates a complete source ZIP with `install.sh`, `uninstall.sh` and Czech/English documentation. Only GridSight is included. User measurements, contracts, credentials and imported XLSX are excluded.
 
 License: AGPL-3.0-or-later; see [LICENSE](LICENSE).
+
+## Languages
+
+The application UI supports all 11 languages: Czech (`cs`), English (`en`), German (`de`), Spanish (`es`), French (`fr`), Italian (`it`), Dutch (`nl`), Polish (`pl`), Portuguese (`pt`), Slovak (`sk`) and Ukrainian (`uk`). Unsupported languages and individual missing translations fall back to English (EN). Every catalog has the same complete key set and preserves message placeholders. Text returned directly by the server or Core components follows those services’ localization. Guides and development documentation are available only in Czech and English.
+
+Every future app update must audit the shared language set: `cs`, `en`, `de`, `es`, `fr`, `it`, `nl`, `pl`, `pt`, `sk`, `uk`. Add missing languages and translation keys, verify Nextcloud language selection, and document the languages actually supported. A catalog file alone does not prove translation completeness. User guides and development documentation are published only in Czech and English.
+
+Translation audit for future releases (Python 3 and Node.js):
+
+```sh
+python3 scripts/check-languages.py
+```
