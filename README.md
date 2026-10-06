@@ -28,6 +28,8 @@ sudo sh install.sh
 
 Uninstall with `sudo sh uninstall.sh`; read the [installation guide](docs/en/01_INSTALLATION.md) first. One Nextcloud baseline migration creates the initial schema. The installer checks and adds missing tables/columns without deleting measurements.
 
+The required dependency is available in the [Hacesoft Core repository](https://github.com/hacesoft/core). Install and enable it before installing GridSight.
+
 ## Documentation
 
 - [Overview](docs/en/README.md)

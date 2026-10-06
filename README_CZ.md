@@ -28,6 +28,8 @@ sudo sh install.sh
 
 Odinstalace: `sudo sh uninstall.sh`; před použitím si přečtěte [instalační návod](docs/cz/01_INSTALACE.md). Výchozí schéma vytváří jediná baseline migrace Nextcloudu. Instalační kontrola doplňuje chybějící tabulky a sloupce bez mazání uložených měření.
 
+Povinné Core je dostupné v [repozitáři Hacesoft Core](https://github.com/hacesoft/core). Nainstalujte a zapněte je před instalací GridSightu.
+
 ## Dokumentace
 
 - [Přehled](docs/cz/README.md)
