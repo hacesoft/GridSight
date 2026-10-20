@@ -1,7 +1,5 @@
 [🇨🇿 **Česky**](README_CZ.md) | [🇬🇧 English](README.md)
 
-> **Vstupní archiv pro Publisher:** Tento ZIP má výslednou strukturu s jediným kořenovým adresářem aplikace. Neobsahuje NAS nástroje (`install.sh`, `uninstall.sh`, `build-release.sh`, `scripts/`). Návody, které je zmiňují, platí pro samostatný úplný zdrojový repozitář, nikoli pro tento archiv. Podepsaný `.tar.gz` pro App Store vytváří až Hacesoft Publisher.
-
 
 # GridSight 1.0.0
 
@@ -71,7 +69,3 @@ Historie nabízí přepínač 2D/3D se společným výběrem období od 1 hodiny
 Barvy nízkých a vysokých hodnot i chybějících dat lze změnit. Vyhlazení je výchozí vypnuté, ovlivňuje pouze povrch a nevyplňuje chybějící buňky. Nápověda ukazuje původní průměr buňky a čas reprezentativního vzorku. Tažením se graf otáčí, Shift mění třetí úhel, pravé tlačítko posouvá, kolečko přibližuje. Na dotykovém zařízení funguje otáčení jedním prstem a přiblížení dvěma prsty. Reset obnovuje pohled. Graf se kreslí lokálně v prohlížeči pomocí Canvas; nevyžaduje externí grafickou službu.
 
 Graf využívá zbývající výšku okna. V Nastavení je uživatelská volba obrácení pouze svislého pohybu myši a šipek nahoru/dolů. Po kliknutí do grafu fungují šipky; se Shift otáčejí kolem třetí osy. Domeček nebo Home obnoví pohled.
-
-## Úplný zdrojový balíček a Hacesoft Publisher
-
-Balíček pro GitHub a instalaci na NAS obsahuje `install.sh`, `uninstall.sh`, `build-release.sh`, adresáře `scripts/`, `docs/` a hotovou aplikaci v `src/`. Pro instalaci na NAS rozbalte celý projekt a v jeho kořeni spusťte `sudo sh install.sh`. Do `custom_apps` se kopíruje pouze běhový obsah `src/`, nikoliv dokumentace projektu a instalační skripty. Publisher následně provede vlastní kontrolu a sestaví distribuční archiv s kořenovým adresářem podle ID aplikace; zdejší zdrojový ZIP není přímo distribuční TAR.GZ.

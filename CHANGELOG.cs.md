@@ -1,10 +1,14 @@
 # Přehled změn
 
-## 1.0.0 — 20. 10. 2026
+## 1.0.0 — 2026-10-20
 
-### Změněno
-- Příprava prvního veřejného vydání: metadata, dokumentace a požadavek Core 0.18.8.
-- Upraveno balení a veřejná prezentace pro Nextcloud App Store.
+První veřejné vydání GridSight pro Nextcloud 35.
+
+### Funkce
+- Živé energetické toky a přehled výroby a spotřeby
+- Historie měření a 2D/3D grafy
+- Spotové ceny a analýzy vyúčtování elektřiny
 
 ### Kompatibilita
-- Nextcloud 35, PHP 8.3+, HC Shared App Core 0.18.8+.
+- Nextcloud 35 a PHP 8.3+.
+- Vyžaduje Hacesoft Shared App Core 0.18.8 nebo novější.

@@ -22,7 +22,7 @@ ARCHIVE="$RELEASE/$APP_ID-$VERSION-source.zip"
 rm -rf "$BUILD"
 mkdir -p "$SOURCE" "$RELEASE"
 trap 'rm -rf "$BUILD"' EXIT HUP INT TERM
-(cd "$ROOT" && tar -cf - .gitignore LICENSE CHANGELOG.md CHANGELOG.cs.md README.md README_CZ.md install.sh uninstall.sh build-release.sh scripts docs assets src) | (cd "$SOURCE" && tar -xf -)
+(cd "$ROOT" && tar -cf - .gitignore LICENSE CHANGELOG.md CHANGELOG.cs.md README.md README_CZ.md install.sh uninstall.sh build-release.sh scripts docs src) | (cd "$SOURCE" && tar -xf -)
 
 for file in CHANGELOG.md README.md README_CZ.md install.sh uninstall.sh build-release.sh scripts/install-transaction.sh scripts/custom-apps-safety.sh scripts/ensure-schema.php docs/cz/05_ANALYZA_ELEKTRINY.md docs/en/05_ELECTRICITY_ANALYSIS.md src/appinfo/info.xml; do
   [ -f "$SOURCE/$file" ] || { echo "ERROR: The source package omits $file" >&2; exit 1; }

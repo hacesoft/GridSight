@@ -1,7 +1,5 @@
 [🇨🇿 Česky](README_CZ.md) | [🇬🇧 **English**](README.md)
 
-> **Publisher input archive:** This ZIP uses the final app-rooted format. NAS deployment helpers (`install.sh`, `uninstall.sh`, `build-release.sh`, `scripts/`) are not included. Any instructions referencing those files apply to the separate full-source GitHub repository, not this archive. The final signed App Store `.tar.gz` is produced by Hacesoft Publisher.
-
 
 # GridSight 1.0.0
 
@@ -52,9 +50,7 @@ License: AGPL-3.0-or-later; see [LICENSE](LICENSE).
 
 The application UI supports all 11 languages: Czech (`cs`), English (`en`), German (`de`), Spanish (`es`), French (`fr`), Italian (`it`), Dutch (`nl`), Polish (`pl`), Portuguese (`pt`), Slovak (`sk`) and Ukrainian (`uk`). Unsupported languages and individual missing translations fall back to English (EN). Every catalog has the same complete key set and preserves message placeholders. Text returned directly by the server or Core components follows those services’ localization. Guides and development documentation are available only in Czech and English.
 
-Every future app update must audit the shared language set: `cs`, `en`, `de`, `es`, `fr`, `it`, `nl`, `pl`, `pt`, `sk`, `uk`. Add missing languages and translation keys, verify Nextcloud language selection, and document the languages actually supported. A catalog file alone does not prove translation completeness. User guides and development documentation are published only in Czech and English.
 
-Translation audit for future releases (Python 3 and Node.js):
 
 ```sh
 python3 scripts/check-languages.py
@@ -71,7 +67,3 @@ History has a 2D/3D switch sharing all period presets from one hour to all data.
 Customize low/high/gap colors. Smoothing defaults to zero and changes display only, leaving empty cells empty. Hover shows the original cell mean and a representative sample timestamp. Drag rotates; Shift changes the roll angle; right drag pans; wheel zooms. Touch supports one-finger rotation and two-finger zoom. Reset restores the view. Rendering uses local browser Canvas with no external chart service.
 
 The graph uses the remaining viewport height. Settings include a per-user inverted vertical mouse and Up/Down arrow preference. Focus the graph to rotate with arrow keys; Shift controls roll. Home or the home icon restores the view.
-
-## Full source archive and Hacesoft Publisher
-
-This GitHub/NAS project contains install.sh, uninstall.sh, build-release.sh, scripts/, docs/ and the installable Nextcloud runtime in src/. For NAS installation, extract the entire project and run `sudo sh install.sh` from its root. Do not copy the project root or scripts/ directly into Nextcloud custom_apps; the installer deploys src/. Publisher independently validates this full-source input and builds its own app-ID-rooted, signed distribution archive.
