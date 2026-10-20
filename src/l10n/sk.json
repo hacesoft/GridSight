@@ -580,7 +580,19 @@
     "today": "today",
     "value unavailable": "value unavailable",
     "verified days:": "overené dni:",
-    "version": "version"
+    "version": "version",
+    "Parameter": "Parameter",
+    "Generate": "Vygenerovať",
+    "Low values": "Nízke hodnoty",
+    "High values": "Vysoké hodnoty",
+    "Missing data": "Chýbajúce údaje",
+    "Smoothing": "Vyhladenie",
+    "Original bucket mean": "Pôvodný priemer bunky",
+    "days": "dní",
+    "Date": "Dátum",
+    "Drag to rotate; Shift to roll; right drag to move; wheel to zoom.": "Ťahaním otáčať; so Shift nakláňať; pravým tlačidlom posúvať; kolieskom približovať.",
+    "Home view": "Východiskový pohľad",
+    "Invert vertical movement in 3D": "Obrátiť zvislý pohyb v 3D"
   },
   "pluralForm": "nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;"
 }

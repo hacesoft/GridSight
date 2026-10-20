@@ -17,8 +17,8 @@ async function mountApplication(oBootstrapRoot,CORE){
  let bDisposed=false;
  const oLifetime=new AbortController();
  const APP_VERSION=String(oBootstrapRoot.dataset.appVersion||'');
- const CORE_MIN_VERSION=String(oBootstrapRoot.dataset.requiredCoreVersion||'0.18.0-dev.2');
- CORE.about.register({id:APP,name:'GridSight',version:APP_VERSION,repository:'https://github.com/hacesoft/nextcloud-linea-monitor',releaseNotes:'https://github.com/hacesoft/nextcloud-linea-monitor/releases',documentation:'https://github.com/hacesoft/nextcloud-linea-monitor#readme',core:'>='+CORE_MIN_VERSION});
+ const CORE_MIN_VERSION=String(oBootstrapRoot.dataset.requiredCoreVersion||'0.18.8');
+ CORE.about.register({id:APP,name:'GridSight',version:APP_VERSION,repository:'https://github.com/hacesoft/GridSight',releaseNotes:'https://github.com/hacesoft/GridSight/releases',documentation:'https://github.com/hacesoft/GridSight#readme',core:'>='+CORE_MIN_VERSION});
  const oShellTemplate=document.getElementById('lm-app-shell-template');
  if(!(oShellTemplate instanceof HTMLTemplateElement))throw new Error('LINEA Monitor shell template is missing.');
  const oShellFragment=oShellTemplate.content.cloneNode(true);
@@ -361,7 +361,7 @@ async function loadDailyRevenue(force=false){
 async function loadStatus(){if(loading)return;loading=true;try{const r=await api('/api/linea/status');renderStatus(r.data);$('lm-error').hidden=true;void loadDailyRevenue();}catch(e){const el=$('lm-error');el.textContent=e.message;el.hidden=false;const c=$('lm-connection');c.className='lm-status lm-status-error';c.innerHTML='<span class="lm-dot"></span>'+esc(t(APP,'LINEA offline'));}finally{loading=false;}}
 
 let historyBounds=null;
-let historyRange='24h',historyLoading=false,historyLoaded=false;
+let historyRange='this-year',historyLoading=false,historyLoaded=false;
 const historyNum=(v,d=2)=>isValue(v)?Number(v).toFixed(d):'—';
 function formatHistoryTime(ts,withDate=false){const d=new Date(Number(ts)*1000);if(!Number.isFinite(d.getTime()))return'—';return withDate?d.toLocaleString():d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
 function polylinePath(points,key,x,y){let d='',started=false;for(const p of points){const v=p[key];if(!isValue(v)){started=false;continue;}const px=x(Number(p.ts)),py=y(Number(v));d+=(started?' L ':' M ')+px.toFixed(1)+' '+py.toFixed(1);started=true;}return d.trim();}
@@ -394,6 +394,7 @@ function updateTemperatureLegend(points){
  }
 }
 function applyHistoryPreferences(values){
+ history3dInvert=values.history3dInvert===true;
  for(const [key] of HISTORY_SERIES){
   const allowed=values['chart_'+key]!==false,wasAllowed=historyAllowed[key];
   historyAllowed[key]=allowed;
@@ -488,7 +489,76 @@ function renderSocChart(points){
  el.innerHTML=`<svg class="lm-history-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t(APP,'Historical battery state of charge'))}">${grid}${xt}<path d="${polylinePath(valid,'socPct',x,y)}" class="lm-chart-line soc"/></svg>`;
 }
 function renderHistoryEvents(events){const el=$('lm-history-events');if(!el)return;if(!Array.isArray(events)||!events.length){el.innerHTML='<div class="lm-empty">'+esc(t(APP,'No events yet.'))+'</div>';return;}el.innerHTML=events.map(ev=>`<div class="lm-event ${esc(ev.severity||'info')}"><time>${esc(new Date(Number(ev.ts)*1000).toLocaleString())}</time><strong>${esc(ev.title||ev.type||t(APP,'Event'))}</strong><small>${esc(ev.oldValue??'')} ${ev.oldValue!==null&&ev.newValue!==null?'→':''} ${esc(ev.newValue??'')}</small></div>`).join('');}
+// Interactive local canvas surface: no network assets or changes to stored measurements.
+let historyView='2d',historyResolution=300,history3dFrame=0;
+let history3dInvert=false;
+const h3={yaw:-.7,pitch:.55,roll:0,zoom:1,panX:0,panY:0,cells:[],mesh:null};
+function makeHistorySurface(points,key,resolution){
+ const valid=(points||[]).filter(p=>Number.isFinite(Number(p.ts))).sort((a,b)=>a.ts-b.ts);
+ if(!valid.length)return null;
+ const formatter=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Prague',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});const dateParts=ts=>{const parts=formatter.formatToParts(new Date(ts*1000));const o=Object.fromEntries(parts.map(x=>[x.type,x.value]));return {day:Date.UTC(+o.year,+o.month-1,+o.day)/86400000,minute:+o.hour*60 + +o.minute};};
+ const first=dateParts(valid[0].ts),last=dateParts(valid[valid.length-1].ts);
+ const days=last.day-first.day+1,rows=Math.min(64,days),cols=Math.max(2,Math.min(96,Math.floor(86400/Math.max(300,resolution))));
+ const buckets=Array.from({length:rows},()=>Array.from({length:cols},()=>({sum:0,count:0,ts:null,raw:null})));
+ for(const p of valid){const d=dateParts(+p.ts),r=Math.min(rows-1,Math.floor((d.day-first.day)*rows/days)),c=Math.min(cols-1,Math.floor(d.minute*cols/1440));const b=buckets[r][c];if(isValue(p[key])){b.sum+=Number(p[key]);b.count++;b.ts=+p.ts;b.raw=Number(p[key]);}}
+ const values=buckets.flat().filter(b=>b.count).map(b=>b.sum/b.count);if(!values.length)return null;
+ const low=Math.min(...values),high=Math.max(...values);
+ return {buckets,rows,cols,low,high,days,firstDay:first.day,key,resolution};
+}
+function h3Schedule(){if(history3dFrame||bDisposed)return;history3dFrame=requestAnimationFrame(()=>{history3dFrame=0;drawHistorySurface();});}
+function h3Color(value,low,high){const read=id=>{const s=$(id)?.value||'#000000';return [1,3,5].map(i=>parseInt(s.slice(i,i+2),16));};const a=read('lm-3d-low'),b=read('lm-3d-high'),f=high===low?.5:Math.max(0,Math.min(1,(value-low)/(high-low)));return `rgb(${a.map((x,i)=>Math.round(x+(b[i]-x)*f)).join(',')})`;}
+function drawHistorySurface(){
+ if(historyView!=='3d'||activeTab()!=='history')return;
+ const canvas=$('lm-3d-canvas');if(!canvas)return;const ctx=canvas.getContext('2d');if(!ctx)return;
+ const top=canvas.getBoundingClientRect().top;canvas.style.height=Math.max(280,(window.innerHeight||800)-top-68)+'px';
+ const rect=canvas.getBoundingClientRect(),w=Math.max(320,rect.width),height=Math.max(280,rect.height),dpr=Math.min(2,window.devicePixelRatio||1);canvas.width=w*dpr;canvas.height=height*dpr;ctx.scale(dpr,dpr);ctx.fillStyle='#141c29';ctx.fillRect(0,0,w,height);
+ const m=h3.mesh;h3.cells=[];if(!m){ctx.fillStyle='#fff';ctx.font='14px sans-serif';ctx.fillText(t(APP,'No historical data have been stored yet.'),20,40);return;}
+ const scale=Math.min(w,height)*.33*h3.zoom,cy=Math.cos(h3.yaw),sy=Math.sin(h3.yaw),cp=Math.cos(h3.pitch),sp=Math.sin(h3.pitch),cr=Math.cos(h3.roll),sr=Math.sin(h3.roll);
+ const project=(x,y,z)=>{const a=x*cy-y*sy,b=x*sy+y*cy,c=b*cp-z*sp,d=b*sp+z*cp;return {x:w/2+h3.panX+(a*cr-c*sr)*scale,y:height*.57+h3.panY+(a*sr+c*cr)*scale,depth:d};};
+ const x=c=>-1+2*c/m.cols,y=r=>-1+2*r/m.rows,z=v=>((v-m.low)/(m.high-m.low||1))*1.3;
+ const strength=Number($('lm-3d-smooth')?.value||0);
+ const displayValue=(r,c)=>{const b=m.buckets[r][c];if(!b.count)return null;const raw=b.sum/b.count;if(!strength)return raw;let sum=raw*4,n=4;for(const [dr,dc] of [[0,-1],[0,1],[-1,0],[1,0]]){const b2=m.buckets[r+dr]?.[c+dc];if(b2?.count){sum+=b2.sum/b2.count;n++;}}return raw*(1-strength/100)+(sum/n)*(strength/100);};
+ const faces=[];
+ for(let r=0;r<m.rows;r++)for(let c=0;c<m.cols;c++){const b=m.buckets[r][c],v=displayValue(r,c),missing=v===null;
+ // Cell corners share means of neighbouring valid samples. Missing cells stay on the base plane.
+ const corner=(rr,cc)=>{if(missing)return 0;let sum=0,n=0;for(const dr of [-1,0])for(const dc of [-1,0]){const r2=rr+dr,c2=cc+dc;if(r2>=0&&r2<m.rows&&c2>=0&&c2<m.cols){const vv=displayValue(r2,c2);if(vv!==null){sum+=vv;n++;}}}return z(n?sum/n:v);};
+ const vertices=[[r,c],[r,c+1],[r+1,c+1],[r+1,c]].map(([rr,cc])=>project(x(cc),y(rr),corner(rr,cc)));
+ faces.push({vertices,depth:vertices.reduce((s,p)=>s+p.depth,0)/4,b,r,c,v,missing});}
+ faces.sort((a,b)=>a.depth-b.depth);
+ for(const f of faces){ctx.beginPath();f.vertices.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.fillStyle=f.missing?$('lm-3d-gap').value:h3Color(f.v,m.low,m.high);ctx.fill();ctx.strokeStyle='rgba(255,255,255,.07)';ctx.lineWidth=.5;ctx.stroke();h3.cells.push(f);}
+ ctx.strokeStyle='#b9cadb';ctx.fillStyle='#e9eef5';ctx.lineWidth=1;ctx.font='12px sans-serif';
+ const line=(a,b,label)=>{const p=project(...a),q=project(...b);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();ctx.fillText(label,q.x+5,q.y);};
+ line([-1,-1,0],[1.15,-1,0],'00:00 → 24:00');line([-1,-1,0],[-1,1.15,0],t(APP,'Date'));line([-1,-1,0],[-1,-1,1.5],t(APP,m.key==='spot'?'SPOT':HISTORY_SERIES.find(s=>s[0]===m.key)?.[1]||m.key));
+ const unit=m.key==='soc'?'%':m.key==='spot'?'CZK/kWh':TEMPERATURE_SERIES.includes(m.key)?'°C':'W';
+ ctx.fillText(`${m.low.toFixed(2)} → ${m.high.toFixed(2)} ${unit}`,16,24);ctx.fillText(`${m.days} ${t(APP,'days')} · ${m.rows} × ${m.cols}`,16,44);
+ const dayString=d=>new Date(d*86400000).toLocaleDateString(undefined,{timeZone:'UTC'});ctx.fillText(`${dayString(m.firstDay)} → ${dayString(m.firstDay+m.days-1)}`,16,64);
+}
+function h3Generate(){const key=$('lm-3d-series')?.value||'pv';const fields={pv:'pvW',house:'houseW',grid:'gridW',battery:'batteryW',soc:'socPct',spot:'spotPrice',batteryTemp:'batteryTempC',rackTemp:'rackTempC',inverter1Temp:'inverter1TempC',inverter2Temp:'inverter2TempC',inverter3Temp:'inverter3TempC'};const points=historyPoints.map(p=>({...p,[key]:key==='export'?(isValue(p.gridW)?Math.max(0,-Number(p.gridW)):null):p[fields[key]]}));h3.mesh=makeHistorySurface(points,key,historyResolution);h3Schedule();}
+function setHistoryView(view){historyView=view;document.querySelectorAll('[data-history-view]').forEach(b=>{b.classList.toggle('active',b.dataset.historyView===view);b.setAttribute('aria-pressed',String(b.dataset.historyView===view));});$('lm-history-2d').hidden=view!=='2d';$('lm-history-3d').hidden=view!=='3d';if(view==='3d')h3Generate();else renderPowerChart(historyPoints);}
+function initializeHistorySurface(){
+ const select=$('lm-3d-series');if(!select)return;
+ for(const [key,label] of HISTORY_SERIES){if(key.startsWith('forecast'))continue;const o=document.createElement('option');o.value=key;o.textContent=t(APP,label);select.append(o);}
+ document.querySelectorAll('[data-history-view]').forEach(b=>b.addEventListener('click',()=>setHistoryView(b.dataset.historyView),{signal:oLifetime.signal}));
+ select.addEventListener('change',h3Generate,{signal:oLifetime.signal});
+ for(const id of ['lm-3d-low','lm-3d-high','lm-3d-gap','lm-3d-smooth'])$(id).addEventListener('input',h3Schedule,{signal:oLifetime.signal});
+ $('lm-3d-reset').addEventListener('click',()=>{Object.assign(h3,{yaw:-.7,pitch:.55,roll:0,zoom:1,panX:0,panY:0});h3Schedule();},{signal:oLifetime.signal});
+ const canvas=$('lm-3d-canvas'),pointers=new Map();let pinch=null,moved=false;
+ canvas.addEventListener('contextmenu',e=>e.preventDefault(),{signal:oLifetime.signal});
+ canvas.addEventListener('wheel',e=>{e.preventDefault();h3.zoom=Math.max(.25,Math.min(6,h3.zoom*Math.exp(-e.deltaY*.001)));h3Schedule();},{passive:false,signal:oLifetime.signal});
+ canvas.addEventListener('pointerdown',e=>{canvas.focus({preventScroll:true});canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});moved=false;pinch=null;},{signal:oLifetime.signal});
+ canvas.addEventListener('pointermove',e=>{const old=pointers.get(e.pointerId);if(old){const direction=history3dInvert?-1:1,dx=old.x-e.clientX,dy=(e.clientY-old.y)*direction;moved=moved||Math.abs(dx)+Math.abs(dy)>2;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===2){const [a,b]=[...pointers.values()],distance=Math.hypot(a.x-b.x,a.y-b.y);if(pinch)h3.zoom=Math.max(.25,Math.min(6,h3.zoom*distance/pinch));pinch=distance;}else if(e.buttons===2){h3.panX+=dx;h3.panY+=dy;}else if(e.shiftKey){h3.roll+=dx*.01;}else{h3.yaw+=dx*.01;h3.pitch=Math.max(-1.4,Math.min(1.4,h3.pitch+dy*.01));}h3Schedule();return;}
+ const rect=canvas.getBoundingClientRect(),px=e.clientX-rect.left,py=e.clientY-rect.top;
+ const inside=vertices=>{let yes=false;for(let i=0,j=vertices.length-1;i<vertices.length;j=i++){const a=vertices[i],b=vertices[j];if((a.y>py)!==(b.y>py)&&px<(b.x-a.x)*(py-a.y)/(b.y-a.y)+a.x)yes=!yes;}return yes;};
+ const f=[...h3.cells].reverse().find(f=>inside(f.vertices)),hint=$('lm-3d-hint');if(!f){hint.textContent='';return;}
+ hint.textContent=f.missing?t(APP,'Missing data'):`${formatHistoryTime(f.b.ts,true)} · ${(f.b.sum/f.b.count).toFixed(2)} · ${t(APP,'Original bucket mean')}`;
+ },{signal:oLifetime.signal});
+ const release=e=>{pointers.delete(e.pointerId);pinch=null;};canvas.addEventListener('pointerup',release,{signal:oLifetime.signal});canvas.addEventListener('pointercancel',release,{signal:oLifetime.signal});
+ canvas.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home'].includes(e.key))return;e.preventDefault();if(e.key==='Home'){$('lm-3d-reset').click();return;}const dx=e.key==='ArrowLeft'?.08:e.key==='ArrowRight'?-.08:0,dy=(e.key==='ArrowUp'?-.08:e.key==='ArrowDown'?.08:0)*(history3dInvert?-1:1);if(e.shiftKey)h3.roll+=dx||dy;else{h3.yaw+=dx;h3.pitch=Math.max(-1.4,Math.min(1.4,h3.pitch+dy));}h3Schedule();},{signal:oLifetime.signal});
+ window.addEventListener('resize',h3Schedule,{signal:oLifetime.signal});
+}
+
 function renderHistory(data){
+ historyResolution=Number(data?.resolutionSec)||300;
  const points=data?.points||[],sum=data?.summary||{},collector=data?.collector||{};
  setText('lm-h-pv-kwh',historyNum(sum.pvKWh));setText('lm-h-export-value',historyNum(sum.spotSaleValue,2));setText('lm-h-house-kwh',historyNum(sum.houseKWh));setText('lm-h-import-kwh',historyNum(sum.gridImportKWh));setText('lm-h-export-kwh',historyNum(sum.gridExportKWh));setText('lm-h-batt-charge-kwh',historyNum(sum.batteryChargeKWh));setText('lm-h-batt-discharge-kwh',historyNum(sum.batteryDischargeKWh));
  setText('lm-history-meta',`${points.length} ${t(APP,'points')} · ${data.resolutionSec||'—'} s`);setText('lm-history-resolution',(data.resolutionSec||'—')+' s');setText('lm-history-count',String(collector.fiveMinuteBuckets??collector.rawSamples??'—'));setText('lm-history-last',collector.lastCollectedAt?new Date(Number(collector.lastCollectedAt)*1000).toLocaleString():'—');
@@ -497,7 +567,7 @@ function renderHistory(data){
  const st=$('lm-history-state');if(st){const active=collector.enabled&&fast.online&&!fast.writeProblem;st.textContent=!collector.enabled?t(APP,'Disabled'):fast.writeProblem?t(APP,'DB write problem'):fast.online?t(APP,'Active'):t(APP,'Collector offline');st.className='lm-pill '+(active?'lm-history-on':fast.writeProblem?'lm-history-bad':'');}
  const err=$('lm-history-error');if(err&&collector.enabled&&(fast.lastError||fast.writeProblem)){err.textContent=fast.lastError?(t(APP,'Fast collector:')+' '+fast.lastError):t(APP,'Collector is polling LINEA, but no 5-minute aggregate has been written recently. Restart the collector and inspect its log.');err.hidden=false;}
  historyChartStatus=latestStatus;historyChartNow=Date.now()/1000;
- historyPoints=points;if(activeTab()==='history')renderPowerChart(points);renderHistoryEvents(data?.events||[]);
+ historyPoints=points;if(activeTab()==='history'){if(historyView==='3d')h3Generate();else renderPowerChart(points);}renderHistoryEvents(data?.events||[]);
 }
 async function loadHistory(force=false){if(historyLoading)return;if(historyLoaded&&!force)return;historyLoading=true;const err=$('lm-history-error');try{if(!latestStatus){try{const sr=await api('/api/linea/status');latestStatus=sr.data;}catch(_){}}const requestedRange=historyRange;const r=await api('/api/history?range='+encodeURIComponent(requestedRange));if(requestedRange!==historyRange){historyLoading=false;return loadHistory(true);}historyBounds=['today','yesterday','3m','this-half-year','this-year','6m','12m','2y','all'].includes(requestedRange)?{from:Number(r.from),to:Number(r.to)}:null;renderHistory(r.data||{});if(err)err.hidden=true;historyLoaded=true;}catch(e){if(err){err.textContent=e.message;err.hidden=false;}}finally{historyLoading=false;}}
 
@@ -825,6 +895,7 @@ async function openSettings(){
  if(bDisposed)return;
  const bCanConfigure=oValues.canConfigure===true;
  const aFields=[];
+ aFields.push({id:'history3dInvert',label:t(APP,'Invert vertical movement in 3D'),type:'checkbox',value:oValues.history3dInvert===true});
  if(bCanConfigure)aFields.push({id:'baseUrl',label:t(APP,'LINEA API base URL'),type:'text',value:String(oValues.baseUrl||''),required:true,placeholder:'http://node-red:1880',maxLength:512});
  aFields.push({id:'refreshSeconds',label:t(APP,'LIVE refresh interval'),type:'select',value:String(oValues.refreshSeconds||2),required:true,options:[1,2,5,10,30].map(nValue=>({value:String(nValue),label:String(nValue)+' s'}))});
  if(bCanConfigure)aFields.push({id:'historyEnabled',label:t(APP,'Store history in the background'),type:'checkbox',value:oValues.historyEnabled!==false});
@@ -850,7 +921,7 @@ async function openSettings(){
  const oSave=document.createElement('button');oSave.type='button';oSave.className='primary';oSave.textContent=t(APP,'Save');oActions.append(oSave);
  oSave.addEventListener('click',async()=>{
   if(!oSettingsFormController.validate()){oResult.textContent=t(APP,'Request failed');return;}
-  const oFormValues=oSettingsFormController.values();const oSaveValues={refreshSeconds:Number(oFormValues.refreshSeconds)||2};
+  const oFormValues=oSettingsFormController.values();const oSaveValues={refreshSeconds:Number(oFormValues.refreshSeconds)||2,history3dInvert:oFormValues.history3dInvert===true};
   if(bCanConfigure){oSaveValues.baseUrl=String(oFormValues.baseUrl||'');oSaveValues.historyEnabled=oFormValues.historyEnabled!==false;}
   for(const [key] of HISTORY_SERIES)oSaveValues['chart_'+key]=oFormValues['chart_'+key]===true;
   try{const oSaved=await oSettingsClient.save(oSaveValues);refreshSeconds=Number(oSaved.refreshSeconds||oSaveValues.refreshSeconds)||2;applyHistoryPreferences(oSaved);CORE.notifications.success(t(APP,'Settings saved'),{dedupeKey:'hc_gridsight:settings-saved'});schedule();void loadStatus();historyLoaded=false;}
@@ -879,7 +950,8 @@ $('lm-close-nav').addEventListener('click',()=>setTabsOpen(false,true),{signal:o
 navBackdrop.addEventListener('click',()=>setTabsOpen(false,true),{signal:oLifetime.signal});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&nav.classList.contains('is-open')){event.preventDefault();setTabsOpen(false,true)}},{signal:oLifetime.signal});
 window.matchMedia('(max-width:760px)').addEventListener('change',()=>setTabsOpen(false),{signal:oLifetime.signal});
-document.querySelectorAll('.lm-tab').forEach(btn=>btn.addEventListener('click',()=>{setTabsOpen(false,true);document.querySelectorAll('.lm-tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.lm-tab-panel').forEach(x=>x.classList.remove('active'));$('lm-tab-'+btn.dataset.tab)?.classList.add('active');if(['history','collector','events'].includes(btn.dataset.tab)){if(!historyLoaded)loadHistory();else if(btn.dataset.tab==='history')renderPowerChart(historyPoints);}if(['analysis'].includes(btn.dataset.tab))void loadAnalysis(analysisData?.selectedPeriod||'');if(btn.dataset.tab==='settings')void openSettings();oLayoutController?.refresh?.('manual');}));
+document.querySelectorAll('.lm-tab').forEach(btn=>btn.addEventListener('click',()=>{setTabsOpen(false,true);document.querySelectorAll('.lm-tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.lm-tab-panel').forEach(x=>x.classList.remove('active'));$('lm-tab-'+btn.dataset.tab)?.classList.add('active');if(['history','collector','events'].includes(btn.dataset.tab)){if(!historyLoaded)loadHistory();else if(btn.dataset.tab==='history'){if(historyView==='3d')h3Schedule();else renderPowerChart(historyPoints);}}if(['analysis'].includes(btn.dataset.tab))void loadAnalysis(analysisData?.selectedPeriod||'');if(btn.dataset.tab==='settings')void openSettings();oLayoutController?.refresh?.('manual');}));
+initializeHistorySurface();
 document.querySelectorAll('[data-history-range]').forEach(btn=>btn.addEventListener('click',()=>{historyRange=btn.dataset.historyRange||'24h';historyZoom=null;historySelectedTs=null;document.querySelectorAll('[data-history-range]').forEach(x=>x.classList.toggle('active',x===btn));historyLoaded=false;loadHistory(true);}));
 document.querySelectorAll('[data-series]').forEach(btn=>btn.addEventListener('click',()=>{const k=btn.dataset.series;if(!historyAllowed[k]||btn.disabled)return;historyVisible[k]=!historyVisible[k];btn.classList.toggle('active',historyVisible[k]);btn.setAttribute('aria-pressed',String(historyVisible[k]));renderPowerChart(historyPoints);}));
 $('lm-history-zoom-reset')?.addEventListener('click',()=>{historyZoom=null;$('lm-history-zoom-reset').hidden=true;renderPowerChart(historyPoints);});
@@ -888,7 +960,7 @@ const fnVisibilityChange=()=>{if(document.hidden){updateAutoRefreshUi();return;}
 document.addEventListener('visibilitychange',fnVisibilityChange);
 function fnCleanup(){
  if(bDisposed)return;
- bDisposed=true;oLifetime.abort();
+ bDisposed=true;oLifetime.abort();if(history3dFrame)cancelAnimationFrame(history3dFrame);
  clearInterval(timer);clearInterval(softRefreshTimer);clearInterval(softRefreshTick);
  document.removeEventListener('visibilitychange',fnVisibilityChange);
  oSettingsFormController?.destroy?.();oToolbarController?.destroy?.();oLayoutController?.destroy?.();oAboutController?.destroy?.();CORE.notifications.clear();
@@ -916,7 +988,7 @@ async function start(){
   return;
  }
  try{
-  oCore.assertCompatible(oRoot.dataset.requiredCoreVersion||'0.18.0-dev.2');
+  oCore.assertCompatible(oRoot.dataset.requiredCoreVersion||'0.18.8');
   if(Number(oCore.apiVersion)!==Number(oRoot.dataset.requiredCoreApiVersion||1))throw new Error('Unsupported Shared App Core API version.');
   const fnCleanup=await mountApplication(oRoot,oCore);
   if(bPageClosed)fnCleanup();else fnCurrentCleanup=fnCleanup;

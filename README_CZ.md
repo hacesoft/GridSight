@@ -1,6 +1,9 @@
 [🇨🇿 **Česky**](README_CZ.md) | [🇬🇧 English](README.md)
 
-# GridSight 0.9.1
+> **Vstupní archiv pro Publisher:** Tento ZIP má výslednou strukturu s jediným kořenovým adresářem aplikace. Neobsahuje NAS nástroje (`install.sh`, `uninstall.sh`, `build-release.sh`, `scripts/`). Návody, které je zmiňují, platí pro samostatný úplný zdrojový repozitář, nikoli pro tento archiv. Podepsaný `.tar.gz` pro App Store vytváří až Hacesoft Publisher.
+
+
+# GridSight 1.0.0
 
 GridSight je aplikace pro Nextcloud 35 pro sledování fotovoltaiky, spotřeby domu, baterie, sítě a cen elektřiny. Čte LINEA API, ukládá měřenou historii a porovnává ji s měsíčními reporty EG.D. Technologii neřídí a neposílá příkazy pro změnu nastavení ESS.
 
@@ -18,7 +21,7 @@ GridSight je aplikace pro Nextcloud 35 pro sledování fotovoltaiky, spotřeby d
 
 ## Požadavky a instalace
 
-Nextcloud 35, PHP 8.3 nebo novější podle `src/appinfo/info.xml`, zapnutý Shared App Core alespoň `0.18.0-dev.2` a dostupné LINEA API se schématem `1`. Technické ID aplikace je `hc_gridsight`.
+Nextcloud 35, PHP 8.3 nebo novější podle `src/appinfo/info.xml`, zapnutý Shared App Core alespoň `0.18.8` a dostupné LINEA API se schématem `1`. Technické ID aplikace je `hc_gridsight`.
 
 Zdrojový balíček obsahuje aplikaci v `src/`, instalační skripty a dokumentaci. Pro podporované prostředí Synology/Docker jej rozbalte a spusťte v kořeni projektu:
 
@@ -56,3 +59,19 @@ Kontrola překladů pro další vydání (Python 3 a Node.js):
 ```sh
 python3 scripts/check-languages.py
 ```
+
+## Kontrola aktualizací
+
+Sekce O aplikaci kontroluje GridSight (`hacesoft/GridSight`) i povinné Core (`hacesoft/core`). Ve výchozí větvi svého repozitáře čte `src/appinfo/info.xml`, ověří ID aplikace a porovná `<version>` s nainstalovanou verzí. Adresář `release/` slouží pouze jako záložní zdroj. Úspěšný výsledek Core ukládá na 6 hodin; kontrolu spouští otevření sekce, neběží periodicky na pozadí. Přesné adresy, pravidla výběru a diagnostiku popisuje [referenční dokumentace Core](https://github.com/hacesoft/core/blob/main/docs/cz/CORE_REFERENCE.md).
+
+## Historie: 2D a 3D
+
+Historie nabízí přepínač 2D/3D se společným výběrem období od 1 hodiny po všechna data. Ve 3D vyberte jeden parametr; graf se zobrazí automaticky. Osy představují místní čas během dne, datum a hodnotu (W, %, °C nebo CZK/kWh). Jde o časově agregované historické hodnoty, nikoliv denní energii v kWh. Dlouhá období se pro zobrazení slučují nejvýše do 64 řádků a 96 časových sloupců; původní databázová data zůstávají nezměněná. Buňka s dostupnými vzorky ukazuje jejich průměr; částečná chybějící měření uvnitř buňky nejsou samostatně zobrazena. Prázdné buňky jsou černé, nikoliv nulové hodnoty. Denní agregace bez podrobnějších vzorků nemohou obnovit průběh během dne.
+
+Barvy nízkých a vysokých hodnot i chybějících dat lze změnit. Vyhlazení je výchozí vypnuté, ovlivňuje pouze povrch a nevyplňuje chybějící buňky. Nápověda ukazuje původní průměr buňky a čas reprezentativního vzorku. Tažením se graf otáčí, Shift mění třetí úhel, pravé tlačítko posouvá, kolečko přibližuje. Na dotykovém zařízení funguje otáčení jedním prstem a přiblížení dvěma prsty. Reset obnovuje pohled. Graf se kreslí lokálně v prohlížeči pomocí Canvas; nevyžaduje externí grafickou službu.
+
+Graf využívá zbývající výšku okna. V Nastavení je uživatelská volba obrácení pouze svislého pohybu myši a šipek nahoru/dolů. Po kliknutí do grafu fungují šipky; se Shift otáčejí kolem třetí osy. Domeček nebo Home obnoví pohled.
+
+## Úplný zdrojový balíček a Hacesoft Publisher
+
+Balíček pro GitHub a instalaci na NAS obsahuje `install.sh`, `uninstall.sh`, `build-release.sh`, adresáře `scripts/`, `docs/` a hotovou aplikaci v `src/`. Pro instalaci na NAS rozbalte celý projekt a v jeho kořeni spusťte `sudo sh install.sh`. Do `custom_apps` se kopíruje pouze běhový obsah `src/`, nikoliv dokumentace projektu a instalační skripty. Publisher následně provede vlastní kontrolu a sestaví distribuční archiv s kořenovým adresářem podle ID aplikace; zdejší zdrojový ZIP není přímo distribuční TAR.GZ.

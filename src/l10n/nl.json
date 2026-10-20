@@ -580,7 +580,19 @@
     "today": "today",
     "value unavailable": "value unavailable",
     "verified days:": "geverifieerde dagen:",
-    "version": "version"
+    "version": "version",
+    "Parameter": "Parameter",
+    "Generate": "Genereren",
+    "Low values": "Lage waarden",
+    "High values": "Hoge waarden",
+    "Missing data": "Ontbrekende gegevens",
+    "Smoothing": "Afvlakking",
+    "Original bucket mean": "Oorspronkelijk celgemiddelde",
+    "days": "dagen",
+    "Date": "Datum",
+    "Drag to rotate; Shift to roll; right drag to move; wheel to zoom.": "Sleep om te draaien; Shift om te kantelen; rechts slepen om te verplaatsen; muiswiel om te zoomen.",
+    "Home view": "Beginweergave",
+    "Invert vertical movement in 3D": "Verticale beweging in 3D omkeren"
   },
   "pluralForm": "nplurals=2; plural=(n != 1);"
 }

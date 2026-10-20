@@ -580,7 +580,19 @@
     "today": "hoje",
     "value unavailable": "valor indisponível",
     "verified days:": "dias verificados:",
-    "version": "versão"
+    "version": "versão",
+    "Parameter": "Parâmetro",
+    "Generate": "Gerar",
+    "Low values": "Valores baixos",
+    "High values": "Valores altos",
+    "Missing data": "Dados em falta",
+    "Smoothing": "Suavização",
+    "Original bucket mean": "Média original da célula",
+    "days": "dias",
+    "Date": "Data",
+    "Drag to rotate; Shift to roll; right drag to move; wheel to zoom.": "Arraste para rodar; Shift para inclinar; arraste com o botão direito para mover; roda para ampliar.",
+    "Home view": "Vista inicial",
+    "Invert vertical movement in 3D": "Inverter o movimento vertical em 3D"
   },
   "pluralForm": "nplurals=2; plural=(n != 1);"
 }

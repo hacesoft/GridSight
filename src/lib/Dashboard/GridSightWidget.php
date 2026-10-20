@@ -20,7 +20,7 @@ class GridSightWidget implements IWidget {
     public function getUrl(): ?string { return null; }
 
     public function load(): void {
-        Util::addScript(Application::APP_ID, 'dashboard-0.9.1');
-        Util::addStyle(Application::APP_ID, 'style-0.9.1');
+        Util::addScript(Application::APP_ID, 'dashboard-1.0.0');
+        Util::addStyle(Application::APP_ID, 'style-1.0.0');
     }
 }

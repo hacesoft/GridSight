@@ -580,7 +580,19 @@
     "today": "today",
     "value unavailable": "value unavailable",
     "verified days:": "verified days:",
-    "version": "version"
+    "version": "version",
+    "Parameter": "Parameter",
+    "Generate": "Generate",
+    "Low values": "Low values",
+    "High values": "High values",
+    "Missing data": "Missing data",
+    "Smoothing": "Smoothing",
+    "Original bucket mean": "Original bucket mean",
+    "days": "days",
+    "Date": "Date",
+    "Drag to rotate; Shift to roll; right drag to move; wheel to zoom.": "Drag to rotate; Shift to roll; right drag to move; wheel to zoom.",
+    "Home view": "Home view",
+    "Invert vertical movement in 3D": "Invert vertical movement in 3D"
   },
   "pluralForm": "nplurals=2; plural=(n != 1);"
 }

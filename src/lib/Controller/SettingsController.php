@@ -43,6 +43,7 @@ class SettingsController extends Controller {
             'canConfigure' => $this->isAdmin(),
         ];
         $userId = $this->userSession->getUser()?->getUID();
+         $values['history3dInvert'] = $userId !== null && $this->config->getUserValue($userId, Application::APP_ID, 'history3dInvert', '0') === '1';
         foreach (self::CHART_SERIES as $series) {
             $values['chart_' . $series] = $userId === null ||
                 $this->config->getUserValue($userId, Application::APP_ID, 'chart_' . $series, '1') !== '0';
@@ -61,6 +62,10 @@ class SettingsController extends Controller {
             if ($userId === null) return new DataResponse(['error' => 'A user session is required.'], 401);
             if (!$this->isAdmin() && (array_key_exists('baseUrl', $values) || array_key_exists('historyEnabled', $values))) {
                 return new DataResponse(['error' => 'Administrator privileges are required for global LINEA settings.'], 403);
+            }
+            if (array_key_exists('history3dInvert', $values)) {
+                if (!is_bool($values['history3dInvert'])) throw new \InvalidArgumentException('Invalid 3D mouse preference');
+                $this->config->setUserValue($userId, Application::APP_ID, 'history3dInvert', $values['history3dInvert'] ? '1' : '0');
             }
             foreach (self::CHART_SERIES as $series) {
                 $key = 'chart_' . $series;

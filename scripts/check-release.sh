@@ -9,23 +9,23 @@ for readme in README.md README_CZ.md; do
     grep -Fq 'https://github.com/user-attachments/assets/6cae686b-1849-446d-9b7d-cb213ddca6f2' "$ROOT/$readme" || fail "missing dashboard image in $readme"
 done
 grep -q '<id>hc_gridsight</id>' "$SRC/appinfo/info.xml" || fail 'technical ID mismatch'
-grep -q '<version>0.9.1</version>' "$SRC/appinfo/info.xml" || fail 'version mismatch'
+grep -q '<version>1.0.0</version>' "$SRC/appinfo/info.xml" || fail 'version mismatch'
 grep -q '<namespace>HcGridSight</namespace>' "$SRC/appinfo/info.xml" || fail 'PHP namespace mismatch'
 grep -q '<nextcloud min-version="35" max-version="35"/>' "$SRC/appinfo/info.xml" || fail 'NC35 target mismatch'
 grep -q '<route>hc_gridsight.page.index</route>' "$SRC/appinfo/info.xml" || fail 'navigation route mismatch'
 grep -q 'OCA\\HcGridSight\\BackgroundJob\\CollectorWatchdogJob' "$SRC/appinfo/info.xml" || fail 'watchdog registration mismatch'
 for item in appinfo css img js l10n lib templates bin; do [ -e "$SRC/$item" ] || fail "missing src/$item"; done
-for item in js/app-0.9.1.js js/dashboard-0.9.1.js css/style-0.9.1.css; do [ -f "$SRC/$item" ] || fail "missing $item"; done
+for item in js/app-1.0.0.js js/dashboard-1.0.0.js css/style-1.0.0.css; do [ -f "$SRC/$item" ] || fail "missing $item"; done
 for script in install.sh uninstall.sh scripts/collector.sh scripts/custom-apps-safety.sh; do sh -n "$ROOT/$script" || fail "invalid shell syntax: $script"; done
 python3 - "$ROOT" <<'PY'
 import pathlib,re,sys,xml.etree.ElementTree as ET
 root=pathlib.Path(sys.argv[1]); src=root/'src'
 info=ET.parse(src/'appinfo/info.xml').getroot()
 assert info.findtext('id')=='hc_gridsight'
-assert info.findtext('version')=='0.9.1'
+assert info.findtext('version')=='1.0.0'
 app=(src/'lib/AppInfo/Application.php').read_text()
 assert "APP_ID = 'hc_gridsight'" in app
-assert "VERSION = '0.9.1'" in app
+assert "VERSION = '1.0.0'" in app
 for p in (src/'lib').rglob('*.php'):
     s=p.read_text()
     assert 'namespace OCA\\HcGridSight\\' in s,(p,'namespace')
@@ -36,13 +36,13 @@ for p in (src/'js').glob('*.js'):
     assert "const APP='hc_gridsight'" in p.read_text(),p
 layout=(src/'templates/main.php').read_text()
 order=["Util::addStyle('hc_shared_app_core', 'workspace')",
-       "Util::addStyle(Application::APP_ID, 'style-0.9.1')",
+       "Util::addStyle(Application::APP_ID, 'style-1.0.0')",
        "Util::addScript('hc_shared_app_core', 'hc_shared_app_core')",
-       "Util::addScript(Application::APP_ID, 'app-0.9.1')"]
+       "Util::addScript(Application::APP_ID, 'app-1.0.0')"]
 indices=[layout.index(s) for s in order]
 assert indices==sorted(indices),'Core/app asset order'
 assert 'hc-shared-app-core-layout__content' in layout
-js=(src/'js/app-0.9.1.js').read_text()
+js=(src/'js/app-1.0.0.js').read_text()
 for api in ['CORE.layout.observe','CORE.notifications.',
             'CORE.toolbar.create','CORE.forms.create','CORE.settings.create',
             'CORE.logger','window.HcSharedAppCore','assertCompatible']:
@@ -91,7 +91,7 @@ installer=(root/'install.sh').read_text()
 assert 'lineamonitor' not in installer, 'one-time app rename must stay outside the normal installer'
 assert 'hc_lineamon_' not in installer, 'one-time database rename must stay outside the normal installer'
 for p in root.iterdir():
-    if p.is_file(): assert p.name in {'LICENSE','README.md','README_CZ.md','install.sh','uninstall.sh','build-release.sh'},p
+    if p.is_file(): assert p.name in {'LICENSE','CHANGELOG.md','CHANGELOG.cs.md','.gitignore','README.md','README_CZ.md','install.sh','uninstall.sh','build-release.sh'},p
 assert len(list((src/'lib/Migration').glob('Version*.php')))==1, 'one baseline migration required'
 assert (src/'lib/Migration/Version009000Date20261006090000.php').is_file()
 print('PASS: App ID, schema references, assets, Core integration, baseline migration and project root')

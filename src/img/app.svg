@@ -1,1 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path fill="#fff" d="M18.4 1 6 18h8l-1.6 13L26 12h-8z"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="gridsight"><defs>
+ <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#09bffd"/><stop offset="0.52" stop-color="#0877ed"/><stop offset="1" stop-color="#2722ca"/></linearGradient>
+ <linearGradient id="cream" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffefd7"/><stop offset="1" stop-color="#fff6e8"/></linearGradient>
+ <linearGradient id="ocean" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#00478c"/><stop offset="1" stop-color="#001a45"/></linearGradient>
+ <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#36c5fa"/><stop offset="1" stop-color="#006cf0"/></linearGradient>
+ <linearGradient id="field" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#a1ebfb"/><stop offset="1" stop-color="#4eaf87"/></linearGradient>
+ <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffce30"/><stop offset="1" stop-color="#ff9007"/></linearGradient>
+ <linearGradient id="mint" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#19d2e5"/><stop offset="1" stop-color="#0065e0"/></linearGradient>
+ <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#9ce751"/><stop offset="1" stop-color="#218b3f"/></linearGradient>
+ <filter id="shadow" x="-25%" y="-30%" width="160%" height="180%"><feGaussianBlur in="SourceAlpha" stdDeviation="2"/><feOffset dy="2"/><feComponentTransfer><feFuncA type="linear" slope="0.23"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ </defs><rect width="128" height="128" rx="25" fill="url(#ocean)"/>
+<g filter="url(#shadow)"><path d="M15 85 64 110 113 85 64 60Z" fill="#087fdb" stroke="#21cafa" stroke-width="2"/><path d="M15 65 64 90 113 65 64 40Z" fill="#037bd6" stroke="#24e6df" stroke-width="2"/><path d="M15 49 64 74 113 49 64 24Z" fill="#11cbb7" stroke="#74fbd1" stroke-width="2"/><path d="M36 37 85 62M54 28 103 53M26 54 76 29M44 64 95 40" fill="none" stroke="#a0faff" stroke-width="1.5" opacity=".7"/></g>
+<path d="M64 11C44 11 36 27 41 42Q45 55 64 75Q83 55 87 42C93 27 84 11 64 11Z" fill="#e4f8ff" stroke="#fff" stroke-width="1.5"/><circle cx="64" cy="36" r="13" fill="#0664bf"/><circle cx="64" cy="36" r="7" fill="#9deefd"/></svg>

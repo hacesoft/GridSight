@@ -1,6 +1,9 @@
 [🇨🇿 Česky](README_CZ.md) | [🇬🇧 **English**](README.md)
 
-# GridSight 0.9.1
+> **Publisher input archive:** This ZIP uses the final app-rooted format. NAS deployment helpers (`install.sh`, `uninstall.sh`, `build-release.sh`, `scripts/`) are not included. Any instructions referencing those files apply to the separate full-source GitHub repository, not this archive. The final signed App Store `.tar.gz` is produced by Hacesoft Publisher.
+
+
+# GridSight 1.0.0
 
 GridSight is a Nextcloud 35 application for monitoring photovoltaic production, household consumption, battery storage, grid flows and electricity prices. It reads the LINEA API, stores measurement history and compares it with monthly EG.D reports. It does not control equipment or send commands to change ESS settings.
 
@@ -18,7 +21,7 @@ GridSight is a Nextcloud 35 application for monitoring photovoltaic production, 
 
 ## Requirements and installation
 
-Nextcloud 35, PHP 8.3 or newer as declared in `src/appinfo/info.xml`, enabled Shared App Core `>= 0.18.0-dev.2`, and a reachable LINEA API with schema `1`. The technical app ID is `hc_gridsight`.
+Nextcloud 35, PHP 8.3 or newer as declared in `src/appinfo/info.xml`, enabled Shared App Core `>= 0.18.8`, and a reachable LINEA API with schema `1`. The technical app ID is `hc_gridsight`.
 
 The source package contains the application in `src/`, installer scripts and documentation. For the supported Synology/Docker environment, extract it and run from the project root:
 
@@ -56,3 +59,19 @@ Translation audit for future releases (Python 3 and Node.js):
 ```sh
 python3 scripts/check-languages.py
 ```
+
+## Update checks
+
+About checks both GridSight (`hacesoft/GridSight`) and the required Core (`hacesoft/core`). Checks read `src/appinfo/info.xml` on each repository’s default branch, validate the app ID and compare `<version>` with the installed version. Archive filenames in `release/` are only a fallback. Successful results are cached by Core for 6 hours; opening About triggers the check, with no background polling. See the [Core reference documentation](https://github.com/hacesoft/core/blob/main/docs/en/CORE_REFERENCE.md) for exact endpoints, selection rules and diagnostics.
+
+## History: 2D and 3D
+
+History has a 2D/3D switch sharing all period presets from one hour to all data. Select one 3D parameter; the graph updates automatically. Axes show Prague local time of day, date and value (W, %, °C or CZK/kWh). These are historical averages, not daily kWh totals. Long periods are reduced to at most 64 rows and 96 time columns without modifying stored data. Available samples in each cell are averaged; partial gaps within a populated cell are not separately visualized. Empty cells use black, distinct from measured zero. Daily aggregates cannot reconstruct missing intraday detail.
+
+Customize low/high/gap colors. Smoothing defaults to zero and changes display only, leaving empty cells empty. Hover shows the original cell mean and a representative sample timestamp. Drag rotates; Shift changes the roll angle; right drag pans; wheel zooms. Touch supports one-finger rotation and two-finger zoom. Reset restores the view. Rendering uses local browser Canvas with no external chart service.
+
+The graph uses the remaining viewport height. Settings include a per-user inverted vertical mouse and Up/Down arrow preference. Focus the graph to rotate with arrow keys; Shift controls roll. Home or the home icon restores the view.
+
+## Full source archive and Hacesoft Publisher
+
+This GitHub/NAS project contains install.sh, uninstall.sh, build-release.sh, scripts/, docs/ and the installable Nextcloud runtime in src/. For NAS installation, extract the entire project and run `sudo sh install.sh` from its root. Do not copy the project root or scripts/ directly into Nextcloud custom_apps; the installer deploys src/. Publisher independently validates this full-source input and builds its own app-ID-rooted, signed distribution archive.

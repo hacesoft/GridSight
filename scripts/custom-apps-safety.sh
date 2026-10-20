@@ -20,7 +20,7 @@ hc_clean_custom_apps() {
                 echo "ERROR: Deployment backups may not reside under custom_apps." >&2; exit 1 ;;
             esac
             quarantine="$data_dir/hc-core-deployment-backups/custom-apps-quarantine"
-            for candidate in "$root"/*; do
+            for in "$root"/*; do
                 [ -f "$candidate/appinfo/info.xml" ] || continue
                 name=${candidate##*/}
                 declared=$(sed -n "s:.*<id>\\([^<]*\\)</id>.*:\\1:p" "$candidate/appinfo/info.xml" | head -n 1)

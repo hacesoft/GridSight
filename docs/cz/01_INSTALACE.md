@@ -2,7 +2,7 @@
 
 # Instalace a provoz
 
-GridSight vyžaduje Nextcloud 35, PHP podle požadavku v `src/appinfo/info.xml`, zapnutý Shared App Core alespoň `0.18.0-dev.2` a dostupné LINEA API se schématem `1`. Webový a cronový kontejner musí vidět stejný adresář `custom_apps`.
+GridSight vyžaduje Nextcloud 35, PHP podle požadavku v `src/appinfo/info.xml`, zapnutý Shared App Core alespoň `0.18.8` a dostupné LINEA API se schématem `1`. Webový a cronový kontejner musí vidět stejný adresář `custom_apps`.
 
 Rozbalte **zdrojový ZIP** do samostatné složky na NASu. Ze složky obsahující `install.sh`, `scripts/` a `src/` spusťte:
 

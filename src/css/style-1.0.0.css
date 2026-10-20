@@ -993,3 +993,5 @@
 
 /* Core map cache diagnostics are unrelated to GridSight. */
 #lm-core-about [data-core-maps-runtime] { display:none !important; }
+
+#lm-history-2d[hidden],#lm-history-3d[hidden]{display:none!important}.lm-3d-tools{display:flex;flex-wrap:wrap;gap:12px;align-items:center}.lm-3d-tools label{display:flex;gap:6px;align-items:center}.lm-3d-tools input[type=color]{width:44px;height:32px;padding:0}#lm-3d-canvas{display:block;width:100%;height:520px;touch-action:none;border-radius:8px}#lm-3d-hint{min-height:24px}@media(max-width:600px){#lm-3d-canvas{height:380px}.lm-3d-tools{gap:8px}}

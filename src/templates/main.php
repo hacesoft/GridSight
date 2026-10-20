@@ -5,12 +5,12 @@ declare(strict_types=1);
 use OCA\HcGridSight\AppInfo\Application;
 use OCP\Util;
 
-// Shared App Core 0.18.0-dev.2: jediný podporovaný statický start.
+// Shared App Core 0.18.8: jediný podporovaný statický start.
 // Pořadí assetů je závazné: Core CSS, app CSS, Core JS, app JS.
 Util::addStyle('hc_shared_app_core', 'workspace');
-Util::addStyle(Application::APP_ID, 'style-0.9.1');
+Util::addStyle(Application::APP_ID, 'style-1.0.0');
 Util::addScript('hc_shared_app_core', 'hc_shared_app_core');
-Util::addScript(Application::APP_ID, 'app-0.9.1');
+Util::addScript(Application::APP_ID, 'app-1.0.0');
 ?>
 <div
     id="linea-monitor"
@@ -192,14 +192,14 @@ Util::addScript(Application::APP_ID, 'app-0.9.1');
                     <div class="lm-range-tabs" role="group" aria-label="<?php p($l->t('History range')); ?>">
                         <button type="button" data-history-range="1h">1 h</button>
                         <button type="button" data-history-range="6h">6 h</button>
-                        <button type="button" data-history-range="24h" class="active">24 h</button>
+                        <button type="button" data-history-range="24h">24 h</button>
                         <button type="button" data-history-range="7d"><?php p($l->t('7 days')); ?></button>
                         <button type="button" data-history-range="30d"><?php p($l->t('30 days')); ?></button>
                         <button type="button" data-history-range="today"><?php p($l->t('Today')); ?></button>
                         <button type="button" data-history-range="yesterday"><?php p($l->t('Yesterday')); ?></button>
                         <button type="button" data-history-range="3m"><?php p($l->t('3 months')); ?></button>
                         <button type="button" data-history-range="this-half-year"><?php p($l->t('This half-year')); ?></button>
-                        <button type="button" data-history-range="this-year"><?php p($l->t('This year')); ?></button>
+                        <button type="button" data-history-range="this-year" class="active"><?php p($l->t('This year')); ?></button>
                         <button type="button" data-history-range="6m"><?php p($l->t('6 months')); ?></button>
                         <button type="button" data-history-range="12m"><?php p($l->t('12 months')); ?></button>
                         <button type="button" data-history-range="2y"><?php p($l->t('2 years')); ?></button>
@@ -208,6 +208,8 @@ Util::addScript(Application::APP_ID, 'app-0.9.1');
                 </div>
             </div>
             <div id="lm-history-error" class="lm-alert" hidden></div>
+            <div class="lm-range-tabs" role="group"><button type="button" data-history-view="2d" class="active" aria-pressed="true">2D</button><button type="button" data-history-view="3d" aria-pressed="false">3D</button></div>
+            <div id="lm-history-2d">
             <section class="lm-card lm-history-overview">
                 <div class="lm-card-head"><div><h3>📈 <?php p($l->t('Energy flow history')); ?></h3><small><?php p($l->t('Energy overview for the selected period')); ?></small></div><span id="lm-history-meta" class="lm-age">—</span></div>
                 <div class="lm-history-summary lm-history-summary-inline">
@@ -221,6 +223,19 @@ Util::addScript(Application::APP_ID, 'app-0.9.1');
                 </div>
                 <div class="lm-history-chart-tools"><div class="lm-chart-legend"><button type="button" data-series="pv" class="pv active"><?php p($l->t('PV')); ?></button><button type="button" data-series="house" class="house active"><?php p($l->t('House')); ?></button><button type="button" data-series="grid" class="grid active"><?php p($l->t('Grid')); ?></button><button type="button" data-series="export" class="export active"><?php p($l->t('Sale power')); ?></button><button type="button" data-series="battery" class="battery active"><?php p($l->t('Battery')); ?></button><button type="button" data-series="soc" class="soc active">🔋 SOC</button><button type="button" data-series="spot" class="spot active">💰 SPOT</button><button type="button" data-series="batteryTemp" class="battery-temp active"><?php p($l->t('Battery temperature')); ?></button><button type="button" data-series="rackTemp" class="rack-temp active"><?php p($l->t('Rack temperature')); ?></button><button type="button" data-series="inverter1Temp" class="inverter-1-temp active"><?php p($l->t('Inverter')); ?> 1</button><button type="button" data-series="inverter2Temp" class="inverter-2-temp active"><?php p($l->t('Inverter')); ?> 2</button><button type="button" data-series="inverter3Temp" class="inverter-3-temp active"><?php p($l->t('Inverter')); ?> 3</button><button type="button" data-series="forecastPv" class="forecast-pv active">☀ <?php p($l->t('PV forecast')); ?></button><button type="button" data-series="forecastHouse" class="forecast-house active">🏠 <?php p($l->t('Consumption forecast')); ?></button></div><button type="button" id="lm-history-zoom-reset" class="lm-zoom-reset" hidden>↺ <?php p($l->t('Reset')); ?></button></div>
                 <div id="lm-history-power-chart" class="lm-chart"><div class="lm-empty"><?php p($l->t('No historical data have been stored yet.')); ?></div></div>
+            </section>
+            </div>
+            <section id="lm-history-3d" class="lm-card" hidden>
+                <div class="lm-3d-tools">
+                    <label><?php p($l->t('Parameter')); ?> <select id="lm-3d-series"></select></label>
+                    <label><?php p($l->t('Low values')); ?> <input type="color" id="lm-3d-low" value="#176cbd"></label>
+                    <label><?php p($l->t('High values')); ?> <input type="color" id="lm-3d-high" value="#ffbd32"></label>
+                    <label><?php p($l->t('Missing data')); ?> <input type="color" id="lm-3d-gap" value="#000000"></label>
+                    <label><?php p($l->t('Smoothing')); ?> <input type="range" id="lm-3d-smooth" min="0" max="100" value="0"></label>
+                    <button type="button" id="lm-3d-reset" title="<?php p($l->t('Home view')); ?>" aria-label="<?php p($l->t('Home view')); ?>">⌂</button>
+                </div>
+                <p><?php p($l->t('Drag to rotate; Shift to roll; right drag to move; wheel to zoom.')); ?></p>
+                <canvas id="lm-3d-canvas" tabindex="0" aria-label="3D"></canvas><p id="lm-3d-hint" aria-live="polite"></p>
             </section>
         </section>
         <section id="lm-tab-ess" class="lm-tab-panel">

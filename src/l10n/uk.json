@@ -580,7 +580,19 @@
     "today": "сьогодні",
     "value unavailable": "значення недоступне",
     "verified days:": "перевірені дні:",
-    "version": "версія"
+    "version": "версія",
+    "Parameter": "Параметр",
+    "Generate": "Побудувати",
+    "Low values": "Низькі значення",
+    "High values": "Високі значення",
+    "Missing data": "Відсутні дані",
+    "Smoothing": "Згладжування",
+    "Original bucket mean": "Початкове середнє комірки",
+    "days": "днів",
+    "Date": "Дата",
+    "Drag to rotate; Shift to roll; right drag to move; wheel to zoom.": "Перетягніть для обертання; Shift для нахилу; права кнопка для переміщення; коліщатко для масштабування.",
+    "Home view": "Початковий вигляд",
+    "Invert vertical movement in 3D": "Інвертувати вертикальний рух у 3D"
   },
   "pluralForm": "nplurals=2; plural=(n != 1);"
 }

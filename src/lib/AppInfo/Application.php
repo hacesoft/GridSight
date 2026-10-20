@@ -12,7 +12,7 @@ use OCP\AppFramework\Bootstrap\IRegistrationContext;
 
 class Application extends App implements IBootstrap {
     public const APP_ID = 'hc_gridsight';
-    public const VERSION = '0.9.1';
+    public const VERSION = '1.0.0';
     public const EVENT_PREFIX = self::APP_ID . ':';
 
     public function __construct() {

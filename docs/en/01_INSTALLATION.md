@@ -2,7 +2,7 @@
 
 # Installation and operation
 
-GridSight requires Nextcloud 35, the PHP version declared in `src/appinfo/info.xml`, enabled Shared App Core `>= 0.18.0-dev.2` and a reachable LINEA API with schema `1`. The web and cron containers must share the same `custom_apps` tree.
+GridSight requires Nextcloud 35, the PHP version declared in `src/appinfo/info.xml`, enabled Shared App Core `>= 0.18.8` and a reachable LINEA API with schema `1`. The web and cron containers must share the same `custom_apps` tree.
 
 Extract the **full source ZIP** into a separate directory on the NAS. From the directory containing `install.sh`, `scripts/` and `src/`, run:
 
