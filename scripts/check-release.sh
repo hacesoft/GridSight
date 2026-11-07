@@ -91,7 +91,7 @@ installer=(root/'install.sh').read_text()
 assert 'lineamonitor' not in installer, 'one-time app rename must stay outside the normal installer'
 assert 'hc_lineamon_' not in installer, 'one-time database rename must stay outside the normal installer'
 for p in root.iterdir():
-    if p.is_file(): assert p.name in {'LICENSE','CHANGELOG.md','CHANGELOG.cs.md','.gitignore','README.md','README_CZ.md','install.sh','uninstall.sh','build-release.sh'},p
+    if p.is_file(): assert p.name in {'LICENSE','CHANGELOG.md','CHANGELOG.cs.md','.gitignore','README.md','README_CZ.md','install.sh','uninstall.sh','build-release.sh','package.json'},p
 assert len(list((src/'lib/Migration').glob('Version*.php')))==1, 'one baseline migration required'
 assert (src/'lib/Migration/Version009000Date20261006090000.php').is_file()
 print('PASS: App ID, schema references, assets, Core integration, baseline migration and project root')
