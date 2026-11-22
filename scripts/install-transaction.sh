@@ -2,6 +2,8 @@
 # Společná obnova instalace. Soubor se načítá přes ".", nespouští samostatně.
 # Záloha leží v datovém adresáři Nextcloudu, nikdy v custom_apps.
 
+# Založí transakční kontext pro instalaci a obnovu.
+# Vstupy: aktuální cesty aplikace. Výstup: transakční nastavení.
 hc_tx_begin() {
     HC_TX_WEB=$1 HC_TX_CRON=$2 HC_TX_ID=$3 HC_TX_TARGET=$4
     HC_TX_BACKUP=$5 HC_TX_OLD_VERSION=$6 HC_TX_OLD_ENABLED=$7
@@ -9,6 +11,8 @@ hc_tx_begin() {
     HC_TX_TOUCHED=0
 }
 
+# Pozastaví předchozí webovou aplikaci před výměnou.
+# Vstupy: stav transakce. Výstup: vypnutá předchozí aplikace.
 hc_tx_disable_web() {
     if [ "$HC_TX_OLD_ENABLED" -eq 1 ]; then
         HC_TX_TOUCHED=1
@@ -16,6 +20,8 @@ hc_tx_disable_web() {
     fi
 }
 
+# Zálohuje dosavadní kód aplikace z webového kontejneru.
+# Vstupy: stav transakce. Výstup: bezpečná záloha.
 hc_tx_backup_web() {
     if docker exec "$HC_TX_WEB" test -d "$HC_TX_TARGET"; then
         docker exec "$HC_TX_WEB" mkdir -p "$HC_TX_BACKUP"
@@ -24,12 +30,16 @@ hc_tx_backup_web() {
     fi
 }
 
+# Nahraje izolovanou kopii aplikace do webového kontejneru.
+# Vstupy: připravený kód. Výstup: nové soubory aplikace.
 hc_tx_place_web() {
     docker exec "$HC_TX_WEB" mv "$1" "$HC_TX_TARGET"
     HC_TX_WEB_NEW=1 HC_TX_TOUCHED=1
     docker exec "$HC_TX_WEB" chown -R www-data:www-data "$HC_TX_TARGET"
 }
 
+# Zálohuje dosavadní instalaci pro cron kontejner.
+# Vstupy: stav transakce. Výstup: záloha souborů cron kontejneru.
 hc_tx_backup_cron() {
     if docker exec "$HC_TX_CRON" test -d "$HC_TX_TARGET"; then
         docker exec "$HC_TX_CRON" mkdir -p "$HC_TX_BACKUP"
@@ -38,12 +48,16 @@ hc_tx_backup_cron() {
     fi
 }
 
+# Synchronizuje aplikaci s cron kontejnerem.
+# Vstupy: nový kód. Výstup: souhlasné soubory.
 hc_tx_place_cron() {
     docker exec "$HC_TX_CRON" mv "$1" "$HC_TX_TARGET"
     HC_TX_CRON_NEW=1
     docker exec "$HC_TX_CRON" chown -R www-data:www-data "$HC_TX_TARGET"
 }
 
+# Obnoví předchozí transakční stav aplikace po chybě.
+# Vstupy: zálohovaný stav. Výstup: obnovená instalace.
 hc_tx_restore() {
     [ "${HC_TX_TOUCHED:-0}" -eq 1 ] || [ "${HC_TX_CRON_BACKUP:-0}" -eq 1 ] || [ "${HC_TX_CRON_NEW:-0}" -eq 1 ] || return 0
     printf 'Instalace selhala; obnovuji předchozí kód aplikace.\n' >&2

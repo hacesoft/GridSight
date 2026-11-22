@@ -1,6 +1,8 @@
 #!/bin/sh
 # Načíst z install.sh před prvním voláním occ. V custom_apps smí být jen živá
 # aplikace pod přesným App ID; ostatní kopie patří do záloh mimo tento adresář.
+# Přesune pouze duplicitní kopie vlastní aplikace mimo custom_apps.
+# Vstupy: kořen a App ID. Výstup: stav bezpečného přesunu.
 hc_clean_custom_apps() {
     hc_app_id="$1"
     shift
@@ -20,22 +22,14 @@ hc_clean_custom_apps() {
                 echo "ERROR: Deployment backups may not reside under custom_apps." >&2; exit 1 ;;
             esac
             quarantine="$data_dir/hc-core-deployment-backups/custom-apps-quarantine"
-            for in "$root"/*; do
+            for candidate in "$root"/*; do
                 [ -f "$candidate/appinfo/info.xml" ] || continue
                 name=${candidate##*/}
                 declared=$(sed -n "s:.*<id>\\([^<]*\\)</id>.*:\\1:p" "$candidate/appinfo/info.xml" | head -n 1)
                 [ -n "$declared" ] || continue
                 [ "$name" != "$declared" ] || continue
-                case "$declared" in
-                    hc_shared_app_core|hc_shared_app_core_playground|hc_homewiki|hc_weather|hc_stickynotes|hc_gridsight|hc_familytree|hc_navigation|hc_empty_app) ;;
-                    "$app_id") ;;
-                    *) continue ;;
-                esac
-                # Nepřesouvat jedinou existující kopii jiné aplikace.
-                if [ "$declared" != "$app_id" ] && [ ! -f "$root/$declared/appinfo/info.xml" ]; then
-                    echo "ERROR: $name declares $declared, but the canonical app is missing; refusing to move its only copy." >&2
-                    exit 1
-                fi
+                # Never manipulate installations of other applications.
+                [ "$declared" = "$app_id" ] || continue
                 mkdir -p "$quarantine"
                 destination="$quarantine/$declared.$(date +%Y%m%d%H%M%S).$$.$name"
                 counter=0
@@ -52,6 +46,8 @@ hc_clean_custom_apps() {
 
 # Volá se z EXIT trap instalátoru. Uklízí jen vlastní cesty v /tmp;
 # zálohy starého kódu mimo custom_apps zůstávají.
+# Uklidí připravené dočasné adresáře instalačního kroku.
+# Vstupy: cesty k dočasným souborům. Výstup: uvolněné prostředky.
 hc_cleanup_install_stage() {
     if [ -n "${WEB_CONTAINER:-}" ]; then
         for hc_temp in "${REMOTE_TMP:-}" "${NEW_DIR:-}" "${LINT_STAGE:-}" "${REMOTE_TEST:-}"; do

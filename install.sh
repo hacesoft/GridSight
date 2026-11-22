@@ -1,38 +1,70 @@
 #!/bin/sh
-# HC_INSTALLER_REV=2026-09-26.2 (běžná instalace bez převodu dat)
+# HC_INSTALLER_REV=2026-11-21.1 (prubezny vypis 18 kroku, bez zmeny instalacni logiky)
 set -eu
 
-# Úspěšná instalace vypíše stejné čtyři řádky ve všech aplikacích.
-# Při chybě se místo toho zobrazí celý protokol.
-if [ "${HC_INSTALL_VERBOSE_INTERNAL:-0}" != "1" ]; then
-    INSTALL_LOG="$(mktemp)"
-    trap 'rm -f "$INSTALL_LOG"' EXIT
-    trap 'exit 129' HUP
-    trap 'exit 130' INT
-    trap 'exit 143' TERM
-    if HC_INSTALL_VERBOSE_INTERNAL=1 sh "$0" >"$INSTALL_LOG" 2>&1; then
-        APP_INFO="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/src/appinfo/info.xml"
-        APP_ID="$(sed -n 's:.*<id>\([^<]*\)</id>.*:\1:p' "$APP_INFO" | head -n 1)"
-        APP_NAME="$(sed -n 's:.*<name>\([^<]*\)</name>.*:\1:p' "$APP_INFO" | head -n 1 | sed 's/&amp;/\&/g')"
-        NEW_VERSION="$(sed -n 's:.*<version>\([^<]*\)</version>.*:\1:p' "$APP_INFO" | head -n 1)"
-        OLD_VERSION="$(sed -n 's/^Install previous version: //p' "$INSTALL_LOG" | head -n 1)"
-        WEB_NAME="$(sed -n 's/^Nextcloud web container: //p' "$INSTALL_LOG" | head -n 1)"
-        if [ -z "$APP_ID" ] || [ -z "$NEW_VERSION" ] || [ -z "$OLD_VERSION" ] || [ -z "$WEB_NAME" ]; then
-            cat "$INSTALL_LOG" >&2
-            echo 'ERROR: Could not verify the installation summary.' >&2
-            exit 1
-        fi
-        SIZE_KIB="$(docker exec "$WEB_NAME" du -sk "/var/www/html/custom_apps/$APP_ID" 2>/dev/null | awk 'NR==1 {print $1}')"
-        case "$SIZE_KIB" in ''|*[!0-9]*) SIZE_KIB="$(du -sk "$(dirname "$APP_INFO")/.." | awk 'NR==1 {print $1}')";; esac
-        printf 'Aplikace: %s\nVerze: %s -> %s\nVelikost instalace: %s KiB\nHotovo.\n' "${APP_NAME:-$APP_ID}" "$OLD_VERSION" "$NEW_VERSION" "$SIZE_KIB"
-        grep '^WARNING:' "$INSTALL_LOG" >&2 || true
-        exit 0
-    else
-        STATUS=$?
-        cat "$INSTALL_LOG" >&2
-        exit "$STATUS"
+# Prubezne vypisy instalace podle FamilyTree (stejny POSIX sh protokol).
+# Technicke podrobnosti se ukladaji do logu; chybove vystupy jsou videt pri selhani.
+HC_STEP_NO=0
+HC_STEP_TOTAL=18
+HC_STEP_ACTIVE=0
+HC_INSTALL_LOG="$(mktemp)"
+LOCK_DIR=""
+TMP_LOCAL=""
+exec 3>&2 4>&1
+# Zahájí viditelný instalační krok a přesměruje technické zprávy do logu.
+# Vstupy: $1: název kroku. Výstup: tisk [NN/18] a aktivní přesměrování.
+hc_step_begin(){
+    [ "$HC_STEP_ACTIVE" -eq 0 ] || exit 1
+    HC_STEP_NO=$((HC_STEP_NO + 1))
+    [ "$HC_STEP_NO" -le "$HC_STEP_TOTAL" ] || { printf 'ERROR: Too many install steps\n' >&3; exit 1; }
+    printf '[%02d/%02d] %s ..... ' "$HC_STEP_NO" "$HC_STEP_TOTAL" "$1" >&3
+    exec 1>>"$HC_INSTALL_LOG" 2>&1
+    HC_STEP_ACTIVE=1
+}
+# Uzavře právě dokončený krok instalátoru.
+# Vstupy: žádné. Výstup: živý výpis OK.
+hc_step_ok(){
+    [ "$HC_STEP_ACTIVE" -eq 1 ] || exit 1
+    exec 1>&4 2>&3
+    HC_STEP_ACTIVE=0
+    printf 'OK\n' >&3
+}
+# Vypíše chybu právě rozpracovaného kroku a obnoví standardní výstupy.
+# Vstupy: žádné. Výstup: živý výpis CHYBA.
+hc_step_fail(){
+    if [ "$HC_STEP_ACTIVE" -eq 1 ]; then
+        exec 1>&4 2>&3
+        HC_STEP_ACTIVE=0
+        printf 'CHYBA\n' >&3
     fi
-fi
+}
+# Ukončí logování, zobrazí varování nebo diagnostiku a odstraní dočasný log.
+# Vstupy: $1: návratový kód. Výstup: diagnostika a úklid.
+hc_progress_cleanup(){
+    hc_cleanup_code="$1"
+    hc_step_fail
+    if [ "$hc_cleanup_code" -eq 0 ]; then
+        grep '^WARNING:' "$HC_INSTALL_LOG" >&2 || true
+    else
+        printf '%s\n' '--- Diagnostika instalace ---' >&2
+        tail -n 70 "$HC_INSTALL_LOG" >&2
+    fi
+    rm -f "$HC_INSTALL_LOG"
+}
+# Obslouží předčasné ukončení instalace a bezpečně uvolní lokální pracovní soubory.
+# Vstupy: stav procesu. Výstup: původní návratový kód.
+hc_early_cleanup(){
+    hc_exit_code=$?
+    trap - EXIT HUP INT TERM
+    hc_progress_cleanup "$hc_exit_code"
+    if [ -n "$TMP_LOCAL" ]; then rm -rf "$TMP_LOCAL"; fi
+    if [ -n "$LOCK_DIR" ]; then rmdir "$LOCK_DIR" 2>/dev/null || true; fi
+    exit "$hc_exit_code"
+}
+trap hc_early_cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 PROJECT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 for file in scripts/install-transaction.sh scripts/custom-apps-safety.sh scripts/ensure-schema.php; do
@@ -49,14 +81,23 @@ MAX_NC_MAJOR="$(sed -n 's:.*<nextcloud[^>]*max-version="\([0-9][0-9]*\)".*:\1:p'
 [ -n "$APP_ID" ] || { echo "ERROR: app id not found" >&2; exit 1; }
 [ -n "$APP_NAME" ] || APP_NAME="$APP_ID"
 WEB_CONTAINER=""; CRON_CONTAINER=""
-say(){ printf '%s\n' "$*"; }; die(){ printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+# Vypíše informační text pro výpis instalace.
+# Vstupy: $*: text. Výstup: řádek na standardním výstupu.
+say(){ printf '%s\n' "$*"; }
+# Ukončí instalaci s vysvětlujícím chybovým textem.
+# Vstupy: $*: popis selhání. Výstup: zpráva na stderr a nenulový návratový kód.
+die(){ printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+hc_step_begin "Kontrola opravneni a Dockeru"
 [ "$(id -u)" -eq 0 ] || die "Run this installer with: sudo sh install.sh"
 chmod 755 "$0" 2>/dev/null || true
 command -v docker >/dev/null 2>&1 || die "Docker was not found."
+hc_step_ok
 LOCK_DIR="$PROJECT_DIR/.hc-install-lock"
 mkdir "$LOCK_DIR" 2>/dev/null || die "Another installation or an interrupted install lock exists: $LOCK_DIR"
-trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT HUP INT TERM
 RUNTIME_ITEMS="appinfo css img js l10n lib templates bin"
+hc_step_begin "Vyhledani kontejneru Nextcloud"
+# Ověří přítomnost Nextcloud OCC uvnitř požadovaného kontejneru.
+# Vstupy: $1: název kontejneru. Výstup: návratový kód 0/nenulový.
 container_has_occ(){ docker exec "$1" sh -c 'test -f /var/www/html/occ' >/dev/null 2>&1; }
 if docker ps --format '{{.Names}}' | grep -qx 'nextcloud-app' && container_has_occ nextcloud-app; then WEB_CONTAINER=nextcloud-app; fi
 if docker ps --format '{{.Names}}' | grep -qx 'nextcloud-cron' && container_has_occ nextcloud-cron; then CRON_CONTAINER=nextcloud-cron; fi
@@ -68,10 +109,14 @@ if [ -z "$CRON_CONTAINER" ]; then
 fi
 [ -n "$WEB_CONTAINER" ] || die "Could not find the Nextcloud web container."
 say "Nextcloud web container: $WEB_CONTAINER"; [ -n "$CRON_CONTAINER" ] && say "Nextcloud cron container: $CRON_CONTAINER"
+hc_step_ok
 
 # Před prvním occ odsunout staré duplicitní kopie mimo custom_apps.
+hc_step_begin "Kontrola duplicitnich kopii aplikace"
 . "$PROJECT_DIR/scripts/custom-apps-safety.sh"
 hc_clean_custom_apps "$APP_ID" "$WEB_CONTAINER" "$CRON_CONTAINER" || die "Could not safely move duplicate application trees out of custom_apps."
+hc_step_ok
+hc_step_begin "Kontrola kompatibility Nextcloud"
 NC_STATUS="$(docker exec -u www-data "$WEB_CONTAINER" php /var/www/html/occ status --output=json 2>/dev/null || true)"
 NC_VERSION="$(printf '%s' "$NC_STATUS" | sed -n 's/.*"versionstring":"\([^"]*\)".*/\1/p')"
 if [ -n "$NC_VERSION" ]; then
@@ -81,6 +126,8 @@ if [ -n "$NC_VERSION" ]; then
   [ -z "$MAX_NC_MAJOR" ] || [ "$NC_MAJOR" -le "$MAX_NC_MAJOR" ] || die "$APP_NAME supports Nextcloud up to major $MAX_NC_MAJOR."
  ;; esac
 fi
+hc_step_ok
+hc_step_begin "Kontrola zdroju, verze a databaze"
 for item in $RUNTIME_ITEMS; do [ -e "$APP_DIR/$item" ] || die "Required application item is missing in src/: $item"; done
 SOURCE_VERSION="$(sed -n 's:.*<version>\([^<]*\)</version>.*:\1:p' "$INFO" | head -n 1)"; [ -n "$SOURCE_VERSION" ] || die "Could not determine app version."
 say "$APP_NAME source version: $SOURCE_VERSION"
@@ -96,6 +143,8 @@ fi
 if [ -n "$INSTALLED_VERSION" ]; then
  docker exec "$WEB_CONTAINER" php -r 'exit(version_compare($argv[1], $argv[2], ">") ? 1 : 0);' "$INSTALLED_VERSION" "$SOURCE_VERSION" || die "Downgrade refused: $INSTALLED_VERSION -> $SOURCE_VERSION. Restore a matched code/database backup instead."
 fi
+hc_step_ok
+hc_step_begin "Overeni HC Shared App Core"
 CORE_LIST="$(docker exec -u www-data "$WEB_CONTAINER" php /var/www/html/occ app:list --enabled --output=json 2>/dev/null | tr -d '\n\r ' || true)"
 CORE_VERSION="$(printf '%s' "$CORE_LIST" | sed -n 's/.*"hc_shared_app_core":"\([^"]*\)".*/\1/p')"
 CORE_CONTRACT="$APP_DIR/appinfo/hc_shared_app_core.json"
@@ -109,6 +158,8 @@ elif ! docker exec "$WEB_CONTAINER" php -r 'exit(version_compare($argv[1], $argv
 else
  say "Shared App Core version: $CORE_VERSION (required >= $REQUIRED_CORE_VERSION)"
 fi
+hc_step_ok
+hc_step_begin "Priprava adresare zaloh a aktualniho stavu"
 DATA_DIRECTORY="$(docker exec -u www-data "$WEB_CONTAINER" php /var/www/html/occ config:system:get datadirectory)"
 case "$DATA_DIRECTORY" in /*) ;; *) die "Cannot locate Nextcloud data directory for deployment backup.";; esac
 TMP_LOCAL="$(mktemp -d)"
@@ -118,15 +169,21 @@ SUPERVISOR_RESTORE_VALUE="0"
 COLLECTOR_WAS_RUNNING=0
 PREVIOUS_ENABLED=0
 if docker exec -u www-data "$WEB_CONTAINER" php /var/www/html/occ app:list --enabled 2>/dev/null | grep -q -- "- $APP_ID:"; then PREVIOUS_ENABLED=1; fi
+hc_step_ok
+# Vrátí předchozí nastavení dohledu nad sběračem historie.
+# Vstupy: uložené původní hodnoty. Výstup: nastavení sběrače.
 restore_supervisor_setting(){
  if [ "$SUPERVISOR_PAUSED" -eq 1 ]; then
   docker exec -u www-data "$WEB_CONTAINER" php -r 'require "/var/www/html/lib/base.php"; \OC::$server->get(\OCP\IConfig::class)->setAppValue("hc_gridsight", "collector_supervisor_paused", $argv[1]);' "$SUPERVISOR_RESTORE_VALUE" || return 1
   SUPERVISOR_PAUSED=0
  fi
 }
+# Při chybě obnoví předchozí aplikaci a bezpečně uklidí pracovní adresáře.
+# Vstupy: aktuální stav transakce. Výstup: obnovený/uklizený stav.
 cleanup_install(){
  install_status=$?
  trap - EXIT HUP INT TERM
+ hc_step_fail
  rollback_ok=1
  if [ "$install_status" -ne 0 ]; then
   # Historický sběrač nesmí běžet při výměně jeho souborů.
@@ -167,9 +224,11 @@ cleanup_install(){
  hc_cleanup_install_stage
  rm -rf "$TMP_LOCAL"
  rmdir "$LOCK_DIR" 2>/dev/null || true
+ hc_progress_cleanup "$install_status"
  exit "$install_status"
 }
-trap cleanup_install EXIT HUP INT TERM
+trap cleanup_install EXIT
+hc_step_begin "Priprava izolovane instalacni kopie"
 STAGE="$TMP_LOCAL/$APP_ID"; mkdir -p "$STAGE"
 for item in $RUNTIME_ITEMS; do cp -R "$APP_DIR/$item" "$STAGE/"; done
 TARGET_DIR="/var/www/html/custom_apps/$APP_ID"; NEW_DIR="/tmp/${APP_ID}.new.$$"; BACKUP_DIR="${DATA_DIRECTORY}/hc-core-deployment-backups/${APP_ID}.$(date +%Y%m%d%H%M%S).$$"; REMOTE_TMP="/tmp/${APP_ID}.install.$$"
@@ -178,9 +237,13 @@ docker exec "$WEB_CONTAINER" sh -c 'mkdir -p /var/www/html/custom_apps'
 docker exec "$WEB_CONTAINER" rm -rf "$REMOTE_TMP" "$NEW_DIR" >/dev/null 2>&1 || true
 docker exec "$WEB_CONTAINER" mkdir -p "$REMOTE_TMP"; docker cp "$STAGE/." "$WEB_CONTAINER:$REMOTE_TMP/"
 docker exec "$WEB_CONTAINER" sh -c "mv '$REMOTE_TMP' '$NEW_DIR' && chown -R www-data:www-data '$NEW_DIR'"
+hc_step_ok
+hc_step_begin "Kontrola PHP syntaxe nove kopie"
 # Ověřit PHP v připravené kopii, dokud běží původní verze.
 docker exec "$WEB_CONTAINER" sh -c 'find "$1" -type f -name "*.php" -exec php -l {} \;' sh "$NEW_DIR" >"$TMP_LOCAL/php-lint.log" 2>&1 || { cat "$TMP_LOCAL/php-lint.log"; die "Staged PHP validation failed."; }
 if grep -q 'Errors parsing' "$TMP_LOCAL/php-lint.log"; then cat "$TMP_LOCAL/php-lint.log"; die "Staged PHP validation failed."; fi
+hc_step_ok
+hc_step_begin "Pozastaveni sberace historie LINEA"
 # Deaktivace aplikace sama sběrač nezastaví. Pozastavit jeho dohled a poslat
 # SIGTERM, aby se rozpracovaný agregát mohl uložit; history_enabled neměnit.
 HISTORY_RESTORE_VALUE="$(docker exec -u www-data "$WEB_CONTAINER" php /var/www/html/occ config:app:get "$APP_ID" history_enabled 2>/dev/null || true)"
@@ -190,6 +253,8 @@ SUPERVISOR_RESTORE_VALUE="$(docker exec -u www-data "$WEB_CONTAINER" php /var/ww
 docker exec -u www-data "$WEB_CONTAINER" php -r 'require "/var/www/html/lib/base.php"; \OC::$server->get(\OCP\IConfig::class)->setAppValue("hc_gridsight", "collector_supervisor_paused", "1");'
 SUPERVISOR_PAUSED=1
 say "Pausing LINEA collector supervisor and draining the current collector..."
+# Vrátí identifikátory procesů sběrače LINEA v kontejneru.
+# Vstupy: název kontejneru. Výstup: seznam PID.
 collector_pids(){
  docker exec "$1" sh -c 'ps aux 2>/dev/null | awk '\''$0 ~ /[p]hp[[:space:]]+\/var\/www\/html\/custom_apps\/hc_gridsight\/bin\/collector-daemon\.php/ && $2 ~ /^[0-9]+$/ { print $2 }'\''' || true
 }
@@ -209,9 +274,17 @@ for collector_container in "$WEB_CONTAINER" ${CRON_CONTAINER:-}; do
  [ "$collector_stopped" -eq 1 ] || die "LINEA collector did not stop within 45 seconds in $collector_container; history setting is restored by cleanup."
 done
 # Sběrač už doplnil svůj agregát; teprve nyní se mění kód.
+hc_step_ok
+hc_step_begin "Pozastaveni predchozi aplikace"
 hc_tx_disable_web
+hc_step_ok
+hc_step_begin "Zaloha puvodni aplikace"
 hc_tx_backup_web
+hc_step_ok
+hc_step_begin "Nahrani aplikace do weboveho kontejneru"
 hc_tx_place_web "$NEW_DIR"
+hc_step_ok
+hc_step_begin "Synchronizace s cron kontejnerem"
 # Zkušební soubor rozliší sdílený svazek od samostatné kopie pro cron.
 PROBE_FILE=".hc-deploy-probe-$$"
 docker exec "$WEB_CONTAINER" touch "$TARGET_DIR/$PROBE_FILE"
@@ -227,10 +300,14 @@ if [ -n "$CRON_CONTAINER" ] && [ "$CRON_CONTAINER" != "$WEB_CONTAINER" ]; then
  fi
 fi
 docker exec "$WEB_CONTAINER" rm -f "$TARGET_DIR/$PROBE_FILE"
+hc_step_ok
+hc_step_begin "Obnoveni PHP cache a kontrola databaze"
 docker exec "$WEB_CONTAINER" php -r 'if (function_exists("opcache_reset")) { opcache_reset(); }' >/dev/null 2>&1 || true
 say "Checking application database structure..."
 docker exec -i -u www-data "$WEB_CONTAINER" php -l < "$PROJECT_DIR/scripts/ensure-schema.php" >/dev/null || die "Invalid database check PHP syntax."
 docker exec -i -u www-data "$WEB_CONTAINER" php < "$PROJECT_DIR/scripts/ensure-schema.php" || die "Could not complete the application database structure; original rows have not been deleted."
+hc_step_ok
+hc_step_begin "Zapnuti aplikace a migrace"
 docker exec -u www-data "$WEB_CONTAINER" php /var/www/html/occ app:enable "$APP_ID"
 # Cíleně zapsat verzi aplikace; tabulky byly ověřeny, řádky se nepřevádějí.
 CONFIG_VERSION_BEFORE="$(docker exec -u www-data "$WEB_CONTAINER" php /var/www/html/occ config:app:get "$APP_ID" installed_version 2>/dev/null || true)"
@@ -242,6 +319,8 @@ if docker exec "$WEB_CONTAINER" sh -c 'command -v apache2ctl >/dev/null 2>&1'; t
 elif docker exec "$WEB_CONTAINER" sh -c 'test -r /proc/1/comm && grep -qi php-fpm /proc/1/comm'; then
  docker exec "$WEB_CONTAINER" kill -USR2 1 || die "PHP-FPM reload failed."
 fi
+hc_step_ok
+hc_step_begin "Overeni instalovane verze a souhrn"
 CONFIG_VERSION="$(docker exec -u www-data "$WEB_CONTAINER" php /var/www/html/occ config:app:get "$APP_ID" installed_version)"
 [ "$CONFIG_VERSION" = "$SOURCE_VERSION" ] || die "Installed version does not match source."
 
@@ -250,6 +329,8 @@ DEPLOYED_VERSION="$(docker exec "$WEB_CONTAINER" sh -c "grep -o '<version>[^<]*<
 for item in $RUNTIME_ITEMS; do docker exec "$WEB_CONTAINER" sh -c "test -e '$TARGET_DIR/$item'" || die "Deployment verification failed. Missing: $TARGET_DIR/$item"; done
 say "$APP_NAME version: $DEPLOYED_VERSION"
 say "Filesystem/installed-version verification: OK; browser startup requires runtime qualification."
+hc_step_ok
+hc_step_begin "Obnoveni sberace historie LINEA"
 # Sběrač spustit až po ověření kódu a tabulek; historické řádky se nekopírují.
 restore_supervisor_setting || die "Could not restore LINEA collector supervisor setting; collector was not restarted."
 COLLECTOR_CONTAINER="$WEB_CONTAINER"
@@ -279,3 +360,8 @@ elif [ "$HISTORY_ENABLED" != 0 ] && [ "$SUPERVISOR_RESTORE_VALUE" != 1 ]; then
  die "Fast history collector did not start. Previous application code is restored; check /tmp/hc_gridsight-collector.log in the Nextcloud container."
 fi
 say "$APP_NAME deployment finished successfully."
+SIZE_KIB="$(docker exec "$WEB_CONTAINER" du -sk "$TARGET_DIR" 2>/dev/null | awk 'NR==1 {print $1}')"
+case "$SIZE_KIB" in ''|*[!0-9]*) SIZE_KIB="$(du -sk "$APP_DIR" | awk 'NR==1 {print $1}')";; esac
+hc_step_ok
+[ "$HC_STEP_NO" -eq "$HC_STEP_TOTAL" ] || die "Step counter mismatch"
+printf 'Aplikace: %s\nVerze: %s -> %s\nVelikost instalace: %s KiB\nHotovo.\n' "$APP_NAME" "${INSTALLED_VERSION:-nova instalace}" "$SOURCE_VERSION" "$SIZE_KIB"

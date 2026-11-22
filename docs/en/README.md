@@ -10,14 +10,12 @@ Its technical app ID is `hc_gridsight`. It requires enabled Shared App Core `>= 
 2. [Using GridSight](02_USAGE.md)
 3. [Data and history](03_DATA_AND_HISTORY.md)
 4. [Daily SPOT calculation](04_SPOT.md)
-5. [Electricity analysis and ED.G import](05_ELECTRICITY_ANALYSIS.md)
+5. [Electricity analysis and EG.D import](05_ELECTRICITY_ANALYSIS.md)
+6. [Full feature and notification reference](06_FEATURES_AND_NOTICES.md)
+7. [API and data fields](08_API_AND_DATA_FIELDS.md)
 
 ## Languages
 
-The application UI supports all 11 languages: Czech (`cs`), English (`en`), German (`de`), Spanish (`es`), French (`fr`), Italian (`it`), Dutch (`nl`), Polish (`pl`), Portuguese (`pt`), Slovak (`sk`) and Ukrainian (`uk`). Unsupported languages and individual missing translations fall back to English (EN). Every catalog has the same complete key set and preserves message placeholders. Text returned directly by the server or Core components follows those services’ localization. Guides and development documentation are available only in Czech and English.
+The application UI supports all 11 languages: Czech (`cs`), English (`en`), German (`de`), Spanish (`es`), French (`fr`), Italian (`it`), Dutch (`nl`), Polish (`pl`), Portuguese (`pt`), Slovak (`sk`) and Ukrainian (`uk`). Unsupported languages and individual missing translations fall back to English (EN). Every catalog has the same complete key set and preserves message placeholders. Text returned directly by the server or Core components follows those services’ localization. User and technical guides are available in Czech and English. Hungarian (`hu`) is included as a complete additional UI catalog with the same 594 entries as all 11 required languages; technical identifiers and product names remain unchanged.
 
 
-
-```sh
-python3 scripts/check-languages.py
-```

@@ -3,7 +3,7 @@
 from pathlib import Path
 import ast,json,re,subprocess,sys
 root=Path(__file__).resolve().parents[1]
-src=root/'src';locales=['cs','en','de','es','fr','it','nl','pl','pt','sk','uk']
+src=root/'src';locales=['cs','en','de','es','fr','it','hu','nl','pl','pt','sk','uk']
 app_id=re.search(r'<id>(.*?)</id>',(src/'appinfo/info.xml').read_text())[1]
 tables={}
 for locale in locales:
@@ -16,6 +16,11 @@ for locale,table in tables.items():
  for key,value in table.items():
   assert isinstance(value,str) and value.strip(),f'{locale}: empty {key}'
   assert sorted(placeholder.findall(key))==sorted(placeholder.findall(value)),f'{locale}: changed placeholders in {key}: {value}'
+ # Kontrola nepřeložených celých vět; jména zařízení a značení zůstávají původní.
+ if locale!='en':
+  for key,value in table.items():
+   if len(key)>17 and key != 'Shelly Noční proud:':
+    assert value != key, f'{locale}: English sentence left untranslated: {key}'
  # Nextcloud JS registration must preserve every JSON value (including emoji and escaping).
  js=src/'l10n'/f'{locale}.js'
  code="const fs=require('node:fs'),vm=require('node:vm');let result;vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{OC:{L10N:{register:(app,translations,pluralForm)=>{result={app,translations,pluralForm}}}}});process.stdout.write(JSON.stringify(result));"
@@ -37,4 +42,5 @@ assert 'Save' in source
 assert tables['de']['Save']=='Speichern'
 assert tables['pt']['Save']=='Guardar'
 assert tables['uk']['Save']=='Зберегти'
+assert tables['hu']['Save']=='Mentés'
 print(f'{app_id}: PASS — {len(locales)} locales, {len(keys)} keys each, {len(used)} literal source keys; JS registration and placeholders checked')

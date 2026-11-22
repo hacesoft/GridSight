@@ -1,12 +1,12 @@
 [🇨🇿 Česky](README_CZ.md) | [🇬🇧 **English**](README.md)
 
 
-# GridSight 1.0.0
+# GridSight 1.0.1
 
 GridSight is a Nextcloud 35 application for monitoring photovoltaic production, household consumption, battery storage, grid flows and electricity prices. It reads the LINEA API, stores measurement history and compares it with monthly EG.D reports. It does not control equipment or send commands to change ESS settings.
 
 
-<img width="2134" height="1153" alt="GridSight dashboard" src="https://github.com/user-attachments/assets/6cae686b-1849-446d-9b7d-cb213ddca6f2" />
+![GridSight dashboard](https://github.com/user-attachments/assets/6cae686b-1849-446d-9b7d-cb213ddca6f2)
 
 ## Features
 
@@ -39,22 +39,20 @@ The required dependency is available in the [Hacesoft Core repository](https://g
 - [Data and history](docs/en/03_DATA_AND_HISTORY.md)
 - [SPOT calculations](docs/en/04_SPOT.md)
 - [Electricity analysis](docs/en/05_ELECTRICITY_ANALYSIS.md)
+- [Full feature and notification reference](docs/en/06_FEATURES_AND_NOTICES.md)
+- [API and data field reference](docs/en/08_API_AND_DATA_FIELDS.md)
 
-## Source package
+## Source code and private data
 
-`sh build-release.sh` creates a complete source ZIP with `install.sh`, `uninstall.sh` and Czech/English documentation. Only GridSight is included. User measurements, contracts, credentials and imported XLSX are excluded.
+The public source archive includes GridSight code, installation helpers and Czech/English documentation. It does not include users' measurements, uploaded contracts, credentials or imported XLSX files. See the [API and data field reference](docs/en/08_API_AND_DATA_FIELDS.md) for endpoint and payload semantics.
 
 License: AGPL-3.0-or-later; see [LICENSE](LICENSE).
 
 ## Languages
 
-The application UI supports all 11 languages: Czech (`cs`), English (`en`), German (`de`), Spanish (`es`), French (`fr`), Italian (`it`), Dutch (`nl`), Polish (`pl`), Portuguese (`pt`), Slovak (`sk`) and Ukrainian (`uk`). Unsupported languages and individual missing translations fall back to English (EN). Every catalog has the same complete key set and preserves message placeholders. Text returned directly by the server or Core components follows those services’ localization. Guides and development documentation are available only in Czech and English.
+The application UI supports all 11 languages: Czech (`cs`), English (`en`), German (`de`), Spanish (`es`), French (`fr`), Italian (`it`), Dutch (`nl`), Polish (`pl`), Portuguese (`pt`), Slovak (`sk`) and Ukrainian (`uk`). Unsupported languages and individual missing translations fall back to English (EN). Every catalog has the same complete key set and preserves message placeholders. Text returned directly by the server or Core components follows those services’ localization. User and technical guides are available in Czech and English. Hungarian (`hu`) is included as a complete additional UI catalog with the same 594 entries as all 11 required languages; technical identifiers and product names remain unchanged.
 
 
-
-```sh
-python3 scripts/check-languages.py
-```
 
 ## Update checks
 

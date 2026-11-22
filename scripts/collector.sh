@@ -7,9 +7,13 @@ if ! docker exec "$CRON" test -f /var/www/html/occ >/dev/null 2>&1; then CRON=''
 TARGET="${CRON:-$WEB}"
 SCRIPT="/var/www/html/custom_apps/$APP_ID/bin/collector-daemon.php"
 LOG=/tmp/hc_gridsight-collector.log
+# Najde spuštěné procesy sběrače v cílovém kontejneru.
+# Vstupy: $1: kontejner. Výstup: seznam PID.
 pids() {
  docker exec "$1" sh -c 'ps aux 2>/dev/null | awk '\''$0 ~ /[p]hp[[:space:]]+\/var\/www\/html\/custom_apps\/hc_gridsight\/bin\/collector-daemon\.php/ && $2 ~ /^[0-9]+$/ { print $2 }'\''' || true
 }
+# Bezpečně ukončí běžící sběrač v cílovém kontejneru.
+# Vstupy: $1: kontejner. Výstup: stav zastavení.
 stop_in() {
  for pid in $(pids "$1"); do docker exec "$1" kill -TERM "$pid" >/dev/null 2>&1 || true; done
 }

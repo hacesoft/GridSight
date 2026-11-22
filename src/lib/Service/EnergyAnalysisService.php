@@ -1,5 +1,19 @@
 <?php
 
+/**
+ * Hacesoft GridSight – typová legenda proměnných (maďarská notace).
+ * Historie: 2026-11-21 – bezpečné sjednocení interních lokálních proměnných.
+ * Historie: 2026-11-22 – ověření typů, významových komentářů a shody názvů vlastností.
+ * s – textový řetězec / identifikátor nebo cesta.
+ * n – číslo (celé, desetinné, čas nebo jednotky).
+ * b – logická hodnota.
+ * a – pole / seznam.
+ * o – instance objektu nebo výjimka.
+ * v – smíšená nebo zatím neurčená hodnota.
+ * Výjimka: názvy parametrů PHP metod a veřejných vlastností se nemění,
+ * protože jsou součástí rozhraní Nextcloud, DI a pojmenovaných argumentů.
+ */
+
 declare(strict_types=1);
 
 namespace OCA\HcGridSight\Service;
@@ -13,6 +27,18 @@ final class EnergyAnalysisService {
     private const XML_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
     private const ZONE = 'Europe/Prague';
 
+    /**
+     * Inicializuje instanci a převezme požadované závislosti.
+     *
+     * Vstupy: `$db` (IDBConnection) – databázové spojení Nextcloudu; `$config` (IConfig) – konfigurace aplikace Nextcloud; `$history` (HistoryService) – přístup k historii a sběrači; `$appData` (\OCP\Files\IAppData) – neveřejné aplikační úložiště Nextcloud.
+     * Výstup: `void` – nastaví závislosti nebo počáteční stav instance; konstruktor žádnou hodnotu nevrací.
+     *
+     * @param IDBConnection $db databázové spojení Nextcloudu
+     * @param IConfig $config konfigurace aplikace Nextcloud
+     * @param HistoryService $history přístup k historii a sběrači
+     * @param \OCP\Files\IAppData $appData neveřejné aplikační úložiště Nextcloud
+     * @return void nastaví závislosti nebo počáteční stav instance; konstruktor žádnou hodnotu nevrací
+     */
     public function __construct(
         private IDBConnection $db,
         private IConfig $config,
@@ -20,498 +46,600 @@ final class EnergyAnalysisService {
         private \OCP\Files\IAppData $appData,
     ) {}
 
+    /**
+     * Načte uložený profil odběrného místa a historii cen.
+     *
+     * Vstupy: žádné vstupní parametry.
+     * Výstup: `array` – konfigurační pole odběrného místa, dodavatelů, cen a HDO.
+     * @return array konfigurační pole odběrného místa, dodavatelů, cen a HDO
+     */
     public function profile(): array {
-        $raw = json_decode($this->config->getAppValue(Application::APP_ID, 'analysis_profile', '{}'), true);
-        return is_array($raw) ? $raw : [];
+        $vRaw = json_decode($this->config->getAppValue(Application::APP_ID, 'analysis_profile', '{}'), true);
+        return is_array($vRaw) ? $vRaw : [];
     }
 
+    /**
+     * Ověří a uloží údaje odběrného místa, smluv, cen a tarifů.
+     *
+     * Vstupy: `$input` (array) – vstupní pole profilu smluv, cen a HDO.
+     * Výstup: `array` – normalizovaný a ověřený profil uložený do konfigurace aplikace.
+     *
+     * @param array $input vstupní pole profilu smluv, cen a HDO
+     * @return array normalizovaný a ověřený profil uložený do konfigurace aplikace
+     */
     public function saveProfile(array $input): array {
-        $strings = [
+        $aStrings = [
             'ean'=>18, 'distributor'=>80, 'usage'=>80, 'meterType'=>16,
             'distributionTariff'=>16, 'mainBreaker'=>24,
         ];
         $profile = [];
-        foreach ($strings as $key => $limit) {
-            $value = trim((string)($input[$key] ?? ''));
-            if (mb_strlen($value) > $limit) throw new \InvalidArgumentException('Invalid profile field: ' . $key);
-            $profile[$key] = $value;
+        foreach ($aStrings as $sKey => $vLimit) {
+            $vValue = trim((string)($input[$sKey] ?? ''));
+            if (mb_strlen($vValue) > $vLimit) throw new \InvalidArgumentException('Invalid profile field: ' . $sKey);
+            $profile[$sKey] = $vValue;
         }
         if ($profile['ean'] !== '' && !preg_match('/^\d{18}$/D', $profile['ean'])) {
             throw new \InvalidArgumentException('EAN must contain 18 digits.');
         }
-        $qb = $this->db->getQueryBuilder();
-        $existingEan = $qb->select('ean')->from('hc_gridsight_edg_reports')
+        $oQb = $this->db->getQueryBuilder();
+        $vExistingEan = $oQb->select('ean')->from('hc_gridsight_edg_reports')
             ->setMaxResults(1)->executeQuery()->fetchOne();
-        if ($existingEan !== false && $profile['ean'] !== (string)$existingEan) {
+        if ($vExistingEan !== false && $profile['ean'] !== (string)$vExistingEan) {
             throw new \InvalidArgumentException('The connection EAN must match the already imported reports.');
         }
-        $contracts = $input['contracts'] ?? [];
-        if (!is_array($contracts) || count($contracts) > 20) throw new \InvalidArgumentException('Invalid contract history.');
+        $aContracts = $input['contracts'] ?? [];
+        if (!is_array($aContracts) || count($aContracts) > 20) throw new \InvalidArgumentException('Invalid contract history.');
         $profile['contracts'] = [];
-        foreach ($contracts as $candidate) {
-            if (!is_array($candidate)) throw new \InvalidArgumentException('Invalid contract row.');
-            $start = trim((string)($candidate['start'] ?? ''));
-            $supplier = trim((string)($candidate['supplier'] ?? ''));
-            $product = trim((string)($candidate['product'] ?? ''));
-            $sourceUrl = trim((string)($candidate['sourceUrl'] ?? ''));
-            $months = $candidate['durationMonths'] ?? null;
-            if ($supplier === '' && $product === '' && $start === '' && $sourceUrl === '') continue;
-            if (mb_strlen($supplier) > 80 || mb_strlen($product) > 160 || mb_strlen($sourceUrl) > 512
-                || ($start !== '' && !$this->isDate($start))
-                || !is_numeric($months) || (int)$months < 1 || (int)$months > 120) {
+        foreach ($aContracts as $vCandidate) {
+            if (!is_array($vCandidate)) throw new \InvalidArgumentException('Invalid contract row.');
+            $vStart = trim((string)($vCandidate['start'] ?? ''));
+            $sSupplier = trim((string)($vCandidate['supplier'] ?? ''));
+            $sProduct = trim((string)($vCandidate['product'] ?? ''));
+            $sSourceUrl = trim((string)($vCandidate['sourceUrl'] ?? ''));
+            $vMonths = $vCandidate['durationMonths'] ?? null;
+            if ($sSupplier === '' && $sProduct === '' && $vStart === '' && $sSourceUrl === '') continue;
+            if (mb_strlen($sSupplier) > 80 || mb_strlen($sProduct) > 160 || mb_strlen($sSourceUrl) > 512
+                || ($vStart !== '' && !$this->isDate($vStart))
+                || !is_numeric($vMonths) || (int)$vMonths < 1 || (int)$vMonths > 120) {
                 throw new \InvalidArgumentException('Invalid contract row.');
             }
-            if ($start === '' && count($contracts) > 1) {
+            if ($vStart === '' && count($aContracts) > 1) {
                 throw new \InvalidArgumentException('Enter the supply start date before adding another contract.');
             }
-            $to = $start === '' ? '' : (new \DateTimeImmutable($start))
-                ->add(new \DateInterval('P' . (int)$months . 'M'))
+            $sTo = $vStart === '' ? '' : (new \DateTimeImmutable($vStart))
+                ->add(new \DateInterval('P' . (int)$vMonths . 'M'))
                 ->sub(new \DateInterval('P1D'))->format('Y-m-d');
-            $profile['contracts'][] = ['start'=>$start,'to'=>$to,'durationMonths'=>(int)$months,
-                'supplier'=>$supplier,'product'=>$product,'sourceUrl'=>$sourceUrl];
+            $profile['contracts'][] = ['start'=>$vStart,'to'=>$sTo,'durationMonths'=>(int)$vMonths,
+                'supplier'=>$sSupplier,'product'=>$sProduct,'sourceUrl'=>$sSourceUrl];
         }
-        usort($profile['contracts'], static fn(array $a,array $b): int => strcmp($a['start'],$b['start']));
-        foreach ($profile['contracts'] as $i=>$contract) {
-            if ($i > 0 && $contract['start'] <= $profile['contracts'][$i-1]['to']) {
+        usort($profile['contracts'], /** Seřadí smlouvy podle data zahájení od nejstarší. Vstupy: dva záznamy smluv s poli start. Výstup: `int` – číselný součet nebo porovnávací výsledek. */ static fn(array $vA,array $vB): int => strcmp($vA['start'],$vB['start']));
+        foreach ($profile['contracts'] as $nI=>$vContract) {
+            if ($nI > 0 && $vContract['start'] <= $profile['contracts'][$nI-1]['to']) {
                 throw new \InvalidArgumentException('Contract periods overlap.');
             }
         }
-        $latest = $profile['contracts'] === [] ? null : $profile['contracts'][count($profile['contracts'])-1];
-        $profile['supplier'] = $latest['supplier'] ?? '';
-        $profile['product'] = $latest['product'] ?? '';
-        $profile['contractStart'] = $latest['start'] ?? '';
-        $profile['durationMonths'] = $latest['durationMonths'] ?? 36;
+        $vLatest = $profile['contracts'] === [] ? null : $profile['contracts'][count($profile['contracts'])-1];
+        $profile['supplier'] = $vLatest['supplier'] ?? '';
+        $profile['product'] = $vLatest['product'] ?? '';
+        $profile['contractStart'] = $vLatest['start'] ?? '';
+        $profile['durationMonths'] = $vLatest['durationMonths'] ?? 36;
 
         $periods = $input['pricePeriods'] ?? [];
         if (!is_array($periods) || count($periods) > 40) throw new \InvalidArgumentException('Invalid price history.');
         $profile['pricePeriods'] = [];
-        foreach ($periods as $candidate) {
-            if (!is_array($candidate)) throw new \InvalidArgumentException('Invalid price row.');
-            $from = trim((string)($candidate['from'] ?? ''));
-            $contractStart = trim((string)($candidate['contractStart'] ?? ''));
-            if ($contractStart !== '') {
-                $matches = array_filter($profile['contracts'], static fn(array $contract): bool => $contract['start'] === $contractStart);
-                if ($matches === []) throw new \InvalidArgumentException('Select an existing contract for the price row.');
+        foreach ($periods as $vCandidate) {
+            if (!is_array($vCandidate)) throw new \InvalidArgumentException('Invalid price row.');
+            $sFrom = trim((string)($vCandidate['from'] ?? ''));
+            $sContractStart = trim((string)($vCandidate['contractStart'] ?? ''));
+            if ($sContractStart !== '') {
+                $aMatches = array_filter($profile['contracts'], /** Otestuje, zda smlouva začíná k vybranému datu. Vstupy: záznam smlouvy obsahující pole start. Výstup: `bool` – true/false podle uvedené podmínky. */ static fn(array $vContract): bool => $vContract['start'] === $sContractStart);
+                if ($aMatches === []) throw new \InvalidArgumentException('Select an existing contract for the price row.');
             }
-            if ($from === '') {
-                if ($contractStart === '' && count($profile['contracts']) === 1) {
-                    $contractStart = $profile['contracts'][0]['start'];
+            if ($sFrom === '') {
+                if ($sContractStart === '' && count($profile['contracts']) === 1) {
+                    $sContractStart = $profile['contracts'][0]['start'];
                 }
-                $from = $contractStart;
+                $sFrom = $sContractStart;
             }
-            if (!$this->isDate($from)) throw new \InvalidArgumentException('Enter a valid price start date.');
-            if ($contractStart !== '' && $from < $contractStart) {
+            if (!$this->isDate($sFrom)) throw new \InvalidArgumentException('Enter a valid price start date.');
+            if ($sContractStart !== '' && $sFrom < $sContractStart) {
                 throw new \InvalidArgumentException('Price cannot start before its contract.');
             }
-            $price = ['from'=>$from,'contractStart'=>$contractStart];
-            foreach (['vtCzkKWh','ntCzkKWh','fixedCzkMonth','greenCzkKWh'] as $key) {
-                $raw = $candidate[$key] ?? null;
-                if ($raw === null || $raw === '' || !is_numeric($raw) || !is_finite((float)$raw)
-                    || (float)$raw < 0 || (float)$raw > 100000) {
-                    throw new \InvalidArgumentException('Invalid price in period ' . $from . ': ' . $key);
+            $aPrice = ['from'=>$sFrom,'contractStart'=>$sContractStart];
+            foreach (['vtCzkKWh','ntCzkKWh','fixedCzkMonth','greenCzkKWh'] as $sKey) {
+                $vRaw = $vCandidate[$sKey] ?? null;
+                if ($vRaw === null || $vRaw === '' || !is_numeric($vRaw) || !is_finite((float)$vRaw)
+                    || (float)$vRaw < 0 || (float)$vRaw > 100000) {
+                    throw new \InvalidArgumentException('Invalid price in period ' . $sFrom . ': ' . $sKey);
                 }
-                $price[$key] = round((float)$raw, 5);
+                $aPrice[$sKey] = round((float)$vRaw, 5);
             }
-            if (!is_bool($candidate['greenEnabled'] ?? null)) {
-                throw new \InvalidArgumentException('Invalid green electricity selection in ' . $from);
+            if (!is_bool($vCandidate['greenEnabled'] ?? null)) {
+                throw new \InvalidArgumentException('Invalid green electricity selection in ' . $sFrom);
             }
-            $price['greenEnabled'] = $candidate['greenEnabled'];
-            $price['sourceUrl'] = trim((string)($candidate['sourceUrl'] ?? ''));
-            if (mb_strlen($price['sourceUrl']) > 512) throw new \InvalidArgumentException('Price list URL is too long.');
+            $aPrice['greenEnabled'] = $vCandidate['greenEnabled'];
+            $aPrice['sourceUrl'] = trim((string)($vCandidate['sourceUrl'] ?? ''));
+            if (mb_strlen($aPrice['sourceUrl']) > 512) throw new \InvalidArgumentException('Price list URL is too long.');
             // A combined price includes annual regulated items. Never silently
             // carry the 2026 full tariff into 2027 without a new tariff row.
-            $yearEnd = substr($from,0,4) . '-12-31';
-            $oldTo = trim((string)($candidate['to'] ?? ''));
-            $price['to'] = $oldTo !== '' && $this->isDate($oldTo) && $oldTo < $yearEnd ? $oldTo : $yearEnd;
-            if ($price['to'] < $from) throw new \InvalidArgumentException('Price end precedes its start: ' . $from);
-            $profile['pricePeriods'][] = $price;
+            $sYearEnd = substr($sFrom,0,4) . '-12-31';
+            $sOldTo = trim((string)($vCandidate['to'] ?? ''));
+            $aPrice['to'] = $sOldTo !== '' && $this->isDate($sOldTo) && $sOldTo < $sYearEnd ? $sOldTo : $sYearEnd;
+            if ($aPrice['to'] < $sFrom) throw new \InvalidArgumentException('Price end precedes its start: ' . $sFrom);
+            $profile['pricePeriods'][] = $aPrice;
         }
-        usort($profile['pricePeriods'],static fn(array $a,array $b): int => strcmp($a['from'],$b['from']));
-        foreach ($profile['pricePeriods'] as $i=>&$price) {
-            if ($i === 0) continue;
-            $prior = &$profile['pricePeriods'][$i-1];
-            if ($price['from'] <= $prior['from']) throw new \InvalidArgumentException('Duplicate price start date.');
-            if ($price['from'] <= $prior['to']) {
-                $prior['to'] = (new \DateTimeImmutable($price['from']))->modify('-1 day')->format('Y-m-d');
+        usort($profile['pricePeriods'],/** Porovná cenové intervaly podle začátku jejich účinnosti. Vstupy: dva záznamy ceníkových intervalů s polem from. Výstup: `int` – číselný součet nebo porovnávací výsledek. */ static fn(array $vA,array $vB): int => strcmp($vA['from'],$vB['from']));
+        foreach ($profile['pricePeriods'] as $nI=>&$aPrice) {
+            if ($nI === 0) continue;
+            $vPrior = &$profile['pricePeriods'][$nI-1];
+            if ($aPrice['from'] <= $vPrior['from']) throw new \InvalidArgumentException('Duplicate price start date.');
+            if ($aPrice['from'] <= $vPrior['to']) {
+                $vPrior['to'] = (new \DateTimeImmutable($aPrice['from']))->modify('-1 day')->format('Y-m-d');
             }
-            unset($prior);
+            unset($vPrior);
         }
-        unset($price);
-        $currentPrice = $profile['pricePeriods'] === [] ? null : $profile['pricePeriods'][count($profile['pricePeriods'])-1];
-        foreach (['vtCzkKWh','ntCzkKWh','fixedCzkMonth','greenCzkKWh','greenEnabled','sourceUrl'] as $key) {
-            $profile[$key] = $currentPrice[$key] ?? ($key === 'greenEnabled' ? false : '');
+        unset($aPrice);
+        $vCurrentPrice = $profile['pricePeriods'] === [] ? null : $profile['pricePeriods'][count($profile['pricePeriods'])-1];
+        foreach (['vtCzkKWh','ntCzkKWh','fixedCzkMonth','greenCzkKWh','greenEnabled','sourceUrl'] as $sKey) {
+            $profile[$sKey] = $vCurrentPrice[$sKey] ?? ($sKey === 'greenEnabled' ? false : '');
         }
-        $profile['priceValidFrom'] = $currentPrice['from'] ?? '';
-        $profile['priceValidTo'] = $currentPrice['to'] ?? '';
-        $schedules = $input['hdoSchedules'] ?? [];
-        if (!is_array($schedules) || count($schedules) > 12) {
+        $profile['priceValidFrom'] = $vCurrentPrice['from'] ?? '';
+        $profile['priceValidTo'] = $vCurrentPrice['to'] ?? '';
+        $vSchedules = $input['hdoSchedules'] ?? [];
+        if (!is_array($vSchedules) || count($vSchedules) > 12) {
             throw new \InvalidArgumentException('Invalid HDO schedules.');
         }
         $profile['hdoSchedules'] = [];
-        foreach ($schedules as $schedule) {
+        foreach ($vSchedules as $schedule) {
             if (!is_array($schedule)) throw new \InvalidArgumentException('Invalid HDO schedule.');
-            $from = (string)($schedule['from'] ?? '');
-            $to = (string)($schedule['to'] ?? '');
-            if (!$this->isDate($from) || !$this->isDate($to) || $from > $to) {
+            $sFrom = (string)($schedule['from'] ?? '');
+            $sTo = (string)($schedule['to'] ?? '');
+            if (!$this->isDate($sFrom) || !$this->isDate($sTo) || $sFrom > $sTo) {
                 throw new \InvalidArgumentException('Invalid HDO date range.');
             }
-            $windows = $schedule['ntWindows'] ?? [];
-            if (!is_array($windows) || count($windows) > 24) throw new \InvalidArgumentException('Invalid HDO windows.');
-            $clean = [];
-            foreach ($windows as $window) {
-                if (!is_array($window) || count($window) !== 2
-                    || !is_int($window[0]) || !is_int($window[1])
-                    || $window[0] < 0 || $window[1] > 1440 || $window[0] >= $window[1]) {
+            $vWindows = $schedule['ntWindows'] ?? [];
+            if (!is_array($vWindows) || count($vWindows) > 24) throw new \InvalidArgumentException('Invalid HDO windows.');
+            $aClean = [];
+            foreach ($vWindows as $nWindow) {
+                if (!is_array($nWindow) || count($nWindow) !== 2
+                    || !is_int($nWindow[0]) || !is_int($nWindow[1])
+                    || $nWindow[0] < 0 || $nWindow[1] > 1440 || $nWindow[0] >= $nWindow[1]) {
                     throw new \InvalidArgumentException('HDO windows must be minute pairs within one day.');
                 }
-                $clean[] = [$window[0], $window[1]];
+                $aClean[] = [$nWindow[0], $nWindow[1]];
             }
-            usort($clean, static fn(array $a, array $b): int => $a[0] <=> $b[0]);
-            for ($i = 1; $i < count($clean); $i++) {
-                if ($clean[$i][0] < $clean[$i-1][1]) throw new \InvalidArgumentException('Overlapping HDO windows.');
+            usort($aClean, /** Seřadí dvojice začátek/konec NT okna chronologicky. Vstupy: dvě dvojice hranic časových oken. Výstup: `int` – číselný součet nebo porovnávací výsledek. */ static fn(array $vA, array $vB): int => $vA[0] <=> $vB[0]);
+            for ($nI = 1; $nI < count($aClean); $nI++) {
+                if ($aClean[$nI][0] < $aClean[$nI-1][1]) throw new \InvalidArgumentException('Overlapping HDO windows.');
             }
-            foreach ($profile['hdoSchedules'] as $old) {
-                if ($from <= $old['to'] && $to >= $old['from']) {
+            foreach ($profile['hdoSchedules'] as $vOld) {
+                if ($sFrom <= $vOld['to'] && $sTo >= $vOld['from']) {
                     throw new \InvalidArgumentException('Overlapping HDO validity periods.');
                 }
             }
-            $profile['hdoSchedules'][] = ['from'=>$from,'to'=>$to,'ntWindows'=>$clean];
+            $profile['hdoSchedules'][] = ['from'=>$sFrom,'to'=>$sTo,'ntWindows'=>$aClean];
         }
         $this->config->setAppValue(Application::APP_ID, 'analysis_profile', json_encode($profile, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
         return $profile;
     }
 
+    /**
+     * Ověří, že řetězec představuje skutečné datum YYYY-MM-DD.
+     *
+     * Vstupy: `$date` (string) – datum YYYY-MM-DD nebo datový objekt dle typu.
+     * Výstup: `bool` – true jen pro platný kalendářní den ve formátu YYYY-MM-DD.
+     *
+     * @param string $date datum YYYY-MM-DD nebo datový objekt dle typu
+     * @return bool true jen pro platný kalendářní den ve formátu YYYY-MM-DD
+     */
     private function isDate(string $date): bool {
-        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $date, $m)) return false;
-        return checkdate((int)$m[2], (int)$m[3], (int)$m[1]);
+        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $date, $vM)) return false;
+        return checkdate((int)$vM[2], (int)$vM[3], (int)$vM[1]);
     }
 
     /** Parse the specific ED.G ICC1/ICQ2/ISC1/ISQ2 export, not arbitrary spreadsheets. */
+    /**
+     * Bezpečně načte předepsaný XLSX výkaz EG.D, zkontroluje strukturu a uloží 15minutová měření.
+     *
+     * Vstupy: `$path` (string) – relativní cesta API nebo úplná cesta k XLSX souboru podle metody; `$filename` (string) – původní název nahraného XLSX souboru.
+     * Výstup: `array` – souhrn importu měsíčního XLSX výkazu EG.D včetně měření a EAN.
+     *
+     * @param string $path relativní cesta API nebo úplná cesta k XLSX souboru podle metody
+     * @param string $filename původní název nahraného XLSX souboru
+     * @return array souhrn importu měsíčního XLSX výkazu EG.D včetně měření a EAN
+     */
     public function importReport(string $path, string $filename): array {
         if (!preg_match('/\.xlsx$/iD', $filename) || !is_file($path) || filesize($path) > 5_000_000) {
             throw new \InvalidArgumentException('Select an ED.G .xlsx report of at most 5 MB.');
         }
-        $zip = new \ZipArchive();
-        if ($zip->open($path) !== true) throw new \InvalidArgumentException('Invalid XLSX archive.');
+        $oZip = new \ZipArchive();
+        if ($oZip->open($path) !== true) throw new \InvalidArgumentException('Invalid XLSX archive.');
         try {
-            if ($zip->numFiles > 64) throw new \InvalidArgumentException('Unexpected XLSX structure.');
-            foreach (['xl/sharedStrings.xml'=>2_000_000, 'xl/worksheets/sheet1.xml'=>8_000_000] as $name=>$limit) {
-                $stat = $zip->statName($name);
-                if (!is_array($stat) || $stat['size'] > $limit) {
+            if ($oZip->numFiles > 64) throw new \InvalidArgumentException('Unexpected XLSX structure.');
+            foreach (['xl/sharedStrings.xml'=>2_000_000, 'xl/worksheets/sheet1.xml'=>8_000_000] as $sName=>$vLimit) {
+                $vStat = $oZip->statName($sName);
+                if (!is_array($vStat) || $vStat['size'] > $vLimit) {
                     throw new \InvalidArgumentException('Unsupported or oversized ED.G worksheet.');
                 }
             }
             // Explicit namespace-aware XPath avoids relying on SimpleXML's
             // implicit default-namespace traversal for role/header cells.
-            $stringDocument = new \DOMDocument();
-            $sheetDocument = new \DOMDocument();
-            $sharedXml = $zip->getFromName('xl/sharedStrings.xml');
-            $sheetXml = $zip->getFromName('xl/worksheets/sheet1.xml');
-            if (!is_string($sharedXml) || $sharedXml === '' || !is_string($sheetXml) || $sheetXml === ''
-                || !@$stringDocument->loadXML($sharedXml, LIBXML_NONET)
-                || !@$sheetDocument->loadXML($sheetXml, LIBXML_NONET)) {
+            $oStringDocument = new \DOMDocument();
+            $oSheetDocument = new \DOMDocument();
+            $vSharedXml = $oZip->getFromName('xl/sharedStrings.xml');
+            $vSheetXml = $oZip->getFromName('xl/worksheets/sheet1.xml');
+            if (!is_string($vSharedXml) || $vSharedXml === '' || !is_string($vSheetXml) || $vSheetXml === ''
+                || !@$oStringDocument->loadXML($vSharedXml, LIBXML_NONET)
+                || !@$oSheetDocument->loadXML($vSheetXml, LIBXML_NONET)) {
                 throw new \InvalidArgumentException('Unreadable ED.G worksheet.');
             }
-            $stringXPath = new \DOMXPath($stringDocument);
-            $sheetXPath = new \DOMXPath($sheetDocument);
-            $stringXPath->registerNamespace('x', self::XML_NS);
-            $sheetXPath->registerNamespace('x', self::XML_NS);
-            $strings = [];
-            foreach ($stringXPath->query('/x:sst/x:si') as $entry) {
-                $value = '';
-                foreach ($stringXPath->query('.//x:t', $entry) as $text) $value .= $text->textContent;
-                $strings[] = $value;
+            $oStringXPath = new \DOMXPath($oStringDocument);
+            $oSheetXPath = new \DOMXPath($oSheetDocument);
+            $oStringXPath->registerNamespace('x', self::XML_NS);
+            $oSheetXPath->registerNamespace('x', self::XML_NS);
+            $aStrings = [];
+            foreach ($oStringXPath->query('/x:sst/x:si') as $oEntry) {
+                $vValue = '';
+                foreach ($oStringXPath->query('.//x:t', $oEntry) as $oText) $vValue .= $oText->textContent;
+                $aStrings[] = $vValue;
             }
             $ean = '';
-            $roleColumns = [];
-            $descriptionColumns = [];
-            $observedHeader = [];
-            $unitHeaders = [];
-            $importColumn = null;
-            $exportColumn = null;
+            $aRoleColumns = [];
+            $aDescriptionColumns = [];
+            $aObservedHeader = [];
+            $aUnitHeaders = [];
+            $vImportColumn = null;
+            $vExportColumn = null;
             $period = '';
-            $intervals = [];
-            $factor = 1_000_000;
-            $firstEpoch = 0;
-            $endEpoch = 0;
-            $zone = new \DateTimeZone(self::ZONE);
-            foreach ($sheetXPath->query('/x:worksheet/x:sheetData/x:row') as $row) {
-                $number = (int)$row->getAttribute('r');
-                $cells = [];
-                foreach ($sheetXPath->query('./x:c', $row) as $cell) {
-                    $name = $cell->getAttribute('r');
-                    if (!preg_match('/^([A-Z]{1,2})\d+$/D', $name, $m)) continue;
-                    $value = $sheetXPath->query('./x:v', $cell)->item(0)?->textContent ?? '';
-                    $cells[$m[1]] = $cell->getAttribute('t') === 's' ? ($strings[(int)$value] ?? '') : $value;
+            $aIntervals = [];
+            $nFactor = 1_000_000;
+            $nFirstEpoch = 0;
+            $nEndEpoch = 0;
+            $oZone = new \DateTimeZone(self::ZONE);
+            foreach ($oSheetXPath->query('/x:worksheet/x:sheetData/x:row') as $oRow) {
+                $nRowNumber = (int)$oRow->getAttribute('r');
+                $aCells = [];
+                foreach ($oSheetXPath->query('./x:c', $oRow) as $oCell) {
+                    $sName = $oCell->getAttribute('r');
+                    if (!preg_match('/^([A-Z]{1,2})\d+$/D', $sName, $vM)) continue;
+                    $vValue = $oSheetXPath->query('./x:v', $oCell)->item(0)?->textContent ?? '';
+                    $aCells[$vM[1]] = $oCell->getAttribute('t') === 's' ? ($aStrings[(int)$vValue] ?? '') : $vValue;
                 }
-                if ($number === 1) {
-                    if (($cells['B'] ?? '') !== 'EAN' || !preg_match('/^\d{18}$/D', $cells['C'] ?? '')) {
+                if ($nRowNumber === 1) {
+                    if (($aCells['B'] ?? '') !== 'EAN' || !preg_match('/^\d{18}$/D', $aCells['C'] ?? '')) {
                         throw new \InvalidArgumentException('Missing or invalid EAN in the ED.G report.');
                     }
-                    $ean = $cells['C'];
+                    $ean = $aCells['C'];
                 }
-                if ($number <= 4) {
-                    if ($number === 3) $observedHeader = $cells;
-                    foreach ($cells as $column => $rawLabel) {
-                        $label = trim((string)$rawLabel);
-                        if (in_array($label, ['ICQ2','ISQ2','DCC1','DSC1'], true)) {
-                            if (isset($roleColumns[$label]) && $roleColumns[$label] !== $column) {
-                                throw new \InvalidArgumentException('Duplicate ED.G energy role: ' . $label);
+                if ($nRowNumber <= 4) {
+                    if ($nRowNumber === 3) $aObservedHeader = $aCells;
+                    foreach ($aCells as $vColumn => $sRawLabel) {
+                        $sLabel = trim((string)$sRawLabel);
+                        if (in_array($sLabel, ['ICQ2','ISQ2','DCC1','DSC1'], true)) {
+                            if (isset($aRoleColumns[$sLabel]) && $aRoleColumns[$sLabel] !== $vColumn) {
+                                throw new \InvalidArgumentException('Duplicate ED.G energy role: ' . $sLabel);
                             }
-                            $roleColumns[$label] = $column;
+                            $aRoleColumns[$sLabel] = $vColumn;
                         }
-                        if ($number !== 4) continue;
-                        $unitHeaders[$column] = mb_strtolower($label);
-                        $description = mb_strtolower((string)preg_replace('/\s+/u', ' ', $label));
-                        if (str_contains($description, 'energie spotřeby ze sítě') && str_contains($description, 'kwh')) {
-                            $descriptionColumns['ICQ2'] = $column;
+                        if ($nRowNumber !== 4) continue;
+                        $aUnitHeaders[$vColumn] = mb_strtolower($sLabel);
+                        $sDescription = mb_strtolower((string)preg_replace('/\s+/u', ' ', $sLabel));
+                        if (str_contains($sDescription, 'energie spotřeby ze sítě') && str_contains($sDescription, 'kwh')) {
+                            $aDescriptionColumns['ICQ2'] = $vColumn;
                         }
-                        if (str_contains($description, 'energie dodávky do sítě') && str_contains($description, 'kwh')) {
-                            $descriptionColumns['ISQ2'] = $column;
+                        if (str_contains($sDescription, 'energie dodávky do sítě') && str_contains($sDescription, 'kwh')) {
+                            $aDescriptionColumns['ISQ2'] = $vColumn;
                         }
                     }
                 }
-                if ($number < 5) continue;
-                if (count($intervals) > 4000) throw new \InvalidArgumentException('Too many ED.G intervals.');
-                if ($importColumn === null || $exportColumn === null) {
-                    if (isset($roleColumns['DCC1'], $roleColumns['DSC1'])) {
-                        foreach (['DCC1','DSC1'] as $role) {
-                            if (!str_contains($unitHeaders[$roleColumns[$role]] ?? '', '(kw)') || !str_contains($unitHeaders[$roleColumns[$role]] ?? '', 'fakturaci')) {
+                if ($nRowNumber < 5) continue;
+                if (count($aIntervals) > 4000) throw new \InvalidArgumentException('Too many ED.G intervals.');
+                if ($vImportColumn === null || $vExportColumn === null) {
+                    if (isset($aRoleColumns['DCC1'], $aRoleColumns['DSC1'])) {
+                        foreach (['DCC1','DSC1'] as $vRole) {
+                            if (!str_contains($aUnitHeaders[$aRoleColumns[$vRole]] ?? '', '(kw)') || !str_contains($aUnitHeaders[$aRoleColumns[$vRole]] ?? '', 'fakturaci')) {
                                 throw new \InvalidArgumentException('Unsupported billed power unit.');
                             }
                         }
-                        $descriptionColumns = [];
-                        $roleColumns = ['ICQ2'=>$roleColumns['DCC1'], 'ISQ2'=>$roleColumns['DSC1']];
-                        $factor = 250_000; // billed kW averaged over a quarter hour -> milliWh
+                        $aDescriptionColumns = [];
+                        $aRoleColumns = ['ICQ2'=>$aRoleColumns['DCC1'], 'ISQ2'=>$aRoleColumns['DSC1']];
+                        $nFactor = 250_000; // billed kW averaged over a quarter hour -> milliWh
                     }
-                    $columns = isset($roleColumns['ICQ2'], $roleColumns['ISQ2']) ? $roleColumns : $descriptionColumns;
-                    $importColumn = $columns['ICQ2'] ?? null;
-                    $exportColumn = $columns['ISQ2'] ?? null;
-                    if ($importColumn === null || $exportColumn === null || $importColumn === $exportColumn) {
-                        $labels = [];
-                        foreach (['B','C','D','E'] as $key) {
-                            $labels[] = $key . '=' . substr(trim((string)($observedHeader[$key] ?? '')), 0, 30);
+                    $aColumns = isset($aRoleColumns['ICQ2'], $aRoleColumns['ISQ2']) ? $aRoleColumns : $aDescriptionColumns;
+                    $vImportColumn = $aColumns['ICQ2'] ?? null;
+                    $vExportColumn = $aColumns['ISQ2'] ?? null;
+                    if ($vImportColumn === null || $vExportColumn === null || $vImportColumn === $vExportColumn) {
+                        $aLabels = [];
+                        foreach (['B','C','D','E'] as $sKey) {
+                            $aLabels[] = $sKey . '=' . substr(trim((string)($aObservedHeader[$sKey] ?? '')), 0, 30);
                         }
-                        throw new \InvalidArgumentException('ED.G energy roles ICQ2/ISQ2 not found. Row 3: ' . implode(', ', $labels));
+                        throw new \InvalidArgumentException('ED.G energy roles ICQ2/ISQ2 not found. Row 3: ' . implode(', ', $aLabels));
                     }
-                    if (isset($descriptionColumns['ICQ2'], $descriptionColumns['ISQ2'])
-                        && ($descriptionColumns['ICQ2'] !== $importColumn || $descriptionColumns['ISQ2'] !== $exportColumn)) {
+                    if (isset($aDescriptionColumns['ICQ2'], $aDescriptionColumns['ISQ2'])
+                        && ($aDescriptionColumns['ICQ2'] !== $vImportColumn || $aDescriptionColumns['ISQ2'] !== $vExportColumn)) {
                         throw new \InvalidArgumentException('ED.G energy roles conflict with column descriptions.');
                     }
                 }
-                $local = $cells['A'] ?? '';
-                if (!preg_match('/^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2}$/D', $local)) {
-                    throw new \InvalidArgumentException('Invalid date at row ' . $number);
+                $vLocal = $aCells['A'] ?? '';
+                if (!preg_match('/^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2}$/D', $vLocal)) {
+                    throw new \InvalidArgumentException('Invalid date at row ' . $nRowNumber);
                 }
                 if ($period === '') {
-                    $period = substr($local, 6, 4) . '-' . substr($local, 3, 2);
+                    $period = substr($vLocal, 6, 4) . '-' . substr($vLocal, 3, 2);
                     if (!$this->isDate($period . '-01')) throw new \InvalidArgumentException('Invalid report month.');
-                    $firstEpoch = (new \DateTimeImmutable($period . '-01 00:00:00', $zone))->getTimestamp();
-                    $endEpoch = (new \DateTimeImmutable($period . '-01 00:00:00', $zone))->modify('+1 month')->getTimestamp();
+                    $nFirstEpoch = (new \DateTimeImmutable($period . '-01 00:00:00', $oZone))->getTimestamp();
+                    $nEndEpoch = (new \DateTimeImmutable($period . '-01 00:00:00', $oZone))->modify('+1 month')->getTimestamp();
                 }
-                $expected = $firstEpoch + count($intervals) * 900;
-                if ($expected >= $endEpoch || (new \DateTimeImmutable('@' . $expected))->setTimezone($zone)->format('d.m.Y H:i:s') !== $local) {
-                    throw new \InvalidArgumentException('Missing, repeated or out-of-order quarter hour at row ' . $number);
+                $vExpected = $nFirstEpoch + count($aIntervals) * 900;
+                if ($vExpected >= $nEndEpoch || (new \DateTimeImmutable('@' . $vExpected))->setTimezone($oZone)->format('d.m.Y H:i:s') !== $vLocal) {
+                    throw new \InvalidArgumentException('Missing, repeated or out-of-order quarter hour at row ' . $nRowNumber);
                 }
-                foreach ([$importColumn,$exportColumn] as $key) {
-                    $numberValue = $cells[$key] ?? '';
-                    if (!is_numeric($numberValue) || !is_finite((float)$numberValue)
-                        || (float)$numberValue < 0 || (float)$numberValue > 100000) {
-                        throw new \InvalidArgumentException('Invalid energy in column ' . $key . ' at row ' . $number);
+                foreach ([$vImportColumn,$vExportColumn] as $sKey) {
+                    $vNumberValue = $aCells[$sKey] ?? '';
+                    if (!is_numeric($vNumberValue) || !is_finite((float)$vNumberValue)
+                        || (float)$vNumberValue < 0 || (float)$vNumberValue > 100000) {
+                        throw new \InvalidArgumentException('Invalid energy in column ' . $sKey . ' at row ' . $nRowNumber);
                     }
                 }
-                $intervals[] = ['ts'=>$expected,
-                    'import_mwh'=>(int)round((float)$cells[$importColumn] * $factor),
-                    'export_mwh'=>(int)round((float)$cells[$exportColumn] * 1_000_000)];
+                $aIntervals[] = ['ts'=>$vExpected,
+                    'import_mwh'=>(int)round((float)$aCells[$vImportColumn] * $nFactor),
+                    'export_mwh'=>(int)round((float)$aCells[$vExportColumn] * 1_000_000)];
             }
-            if ($ean === '' || $period === '' || $firstEpoch + count($intervals) * 900 !== $endEpoch) {
+            if ($ean === '' || $period === '' || $nFirstEpoch + count($aIntervals) * 900 !== $nEndEpoch) {
                 throw new \InvalidArgumentException('The ED.G report does not contain a complete calendar month.');
             }
         } finally {
-            $zip->close();
+            $oZip->close();
         }
         $configuredEan = $this->profile()['ean'] ?? '';
         if ($configuredEan !== '' && $configuredEan !== $ean) {
             throw new \InvalidArgumentException('The report EAN does not match this connection.');
         }
-        $qb = $this->db->getQueryBuilder();
-        $storedEan = $qb->select('ean')->from('hc_gridsight_edg_reports')
+        $oQb = $this->db->getQueryBuilder();
+        $vStoredEan = $oQb->select('ean')->from('hc_gridsight_edg_reports')
             ->setMaxResults(1)->executeQuery()->fetchOne();
-        if ($storedEan !== false && (string)$storedEan !== $ean) {
+        if ($vStoredEan !== false && (string)$vStoredEan !== $ean) {
             throw new \InvalidArgumentException('The report EAN differs from previously imported months.');
         }
         // ED.G usually puts the billing month at the end of REP_DATA_..._YYYY-MM.xlsx.
         // Rows remain authoritative; the filename also guards against a
         // misnamed file being imported into the wrong month.
-        if (preg_match('/(?:^|_)(\d{4})-(0[1-9]|1[0-2])(?:\(\d+\))?\.xlsx$/iD', $filename, $filenameDate)
-            && $period !== $filenameDate[1] . '-' . $filenameDate[2]) {
+        if (preg_match('/(?:^|_)(\d{4})-(0[1-9]|1[0-2])(?:\(\d+\))?\.xlsx$/iD', $filename, $sFilenameDate)
+            && $period !== $sFilenameDate[1] . '-' . $sFilenameDate[2]) {
             throw new \InvalidArgumentException('The report filename month does not match its worksheet.');
         }
-        $hash = hash_file('sha256', $path);
-        $previous = $this->report($period);
-        $sourceName = $period . '-' . $hash . '.xlsx';
-        $folder = $this->reportFolder();
-        if (!$folder->fileExists($sourceName)) $folder->newFile($sourceName)->putContent(file_get_contents($path));
-        if ($previous && $previous['sha256'] === $hash) {
+        $sHash = hash_file('sha256', $path);
+        $vPrevious = $this->report($period);
+        $sSourceName = $period . '-' . $sHash . '.xlsx';
+        $vFolder = $this->reportFolder();
+        if (!$vFolder->fileExists($sSourceName)) $vFolder->newFile($sSourceName)->putContent(file_get_contents($path));
+        if ($vPrevious && $vPrevious['sha256'] === $sHash) {
             $this->rememberReportEan($ean, $configuredEan);
-            return ['period'=>$period,'rows'=>count($intervals),'unchanged'=>true];
+            return ['period'=>$period,'rows'=>count($aIntervals),'unchanged'=>true];
         }
-        $totalImport = array_sum(array_column($intervals, 'import_mwh'));
-        $totalExport = array_sum(array_column($intervals, 'export_mwh'));
+        $nTotalImport = array_sum(array_column($aIntervals, 'import_mwh'));
+        $nTotalExport = array_sum(array_column($aIntervals, 'export_mwh'));
         $this->db->beginTransaction();
         try {
-            if ($previous) {
-                $qb = $this->db->getQueryBuilder();
-                $qb->delete('hc_gridsight_edg_intervals')
-                    ->where($qb->expr()->eq('period',$qb->createNamedParameter($period)))->executeStatement();
-                $qb = $this->db->getQueryBuilder();
-                $qb->delete('hc_gridsight_edg_reports')
-                    ->where($qb->expr()->eq('period',$qb->createNamedParameter($period)))->executeStatement();
+            if ($vPrevious) {
+                $oQb = $this->db->getQueryBuilder();
+                $oQb->delete('hc_gridsight_edg_intervals')
+                    ->where($oQb->expr()->eq('period',$oQb->createNamedParameter($period)))->executeStatement();
+                $oQb = $this->db->getQueryBuilder();
+                $oQb->delete('hc_gridsight_edg_reports')
+                    ->where($oQb->expr()->eq('period',$oQb->createNamedParameter($period)))->executeStatement();
             }
-            $qb = $this->db->getQueryBuilder();
-            $qb->insert('hc_gridsight_edg_reports');
-            foreach (['period'=>$period,'ean'=>$ean,'sha256'=>$hash,'row_count'=>count($intervals),
-                      'import_mwh'=>$totalImport,'export_mwh'=>$totalExport,'imported_at'=>time()] as $column=>$value) {
-                $qb->setValue($column,$qb->createNamedParameter($value));
+            $oQb = $this->db->getQueryBuilder();
+            $oQb->insert('hc_gridsight_edg_reports');
+            foreach (['period'=>$period,'ean'=>$ean,'sha256'=>$sHash,'row_count'=>count($aIntervals),
+                      'import_mwh'=>$nTotalImport,'export_mwh'=>$nTotalExport,'imported_at'=>time()] as $vColumn=>$vValue) {
+                $oQb->setValue($vColumn,$oQb->createNamedParameter($vValue));
             }
-            $qb->executeStatement();
-            foreach ($intervals as $interval) {
-                $qb = $this->db->getQueryBuilder();
-                $qb->insert('hc_gridsight_edg_intervals')
-                    ->setValue('period',$qb->createNamedParameter($period))
-                    ->setValue('ts',$qb->createNamedParameter($interval['ts']))
-                    ->setValue('import_mwh',$qb->createNamedParameter($interval['import_mwh']))
-                    ->setValue('export_mwh',$qb->createNamedParameter($interval['export_mwh']))
+            $oQb->executeStatement();
+            foreach ($aIntervals as $vInterval) {
+                $oQb = $this->db->getQueryBuilder();
+                $oQb->insert('hc_gridsight_edg_intervals')
+                    ->setValue('period',$oQb->createNamedParameter($period))
+                    ->setValue('ts',$oQb->createNamedParameter($vInterval['ts']))
+                    ->setValue('import_mwh',$oQb->createNamedParameter($vInterval['import_mwh']))
+                    ->setValue('export_mwh',$oQb->createNamedParameter($vInterval['export_mwh']))
                     ->executeStatement();
             }
             $this->db->commit();
-        } catch (\Throwable $error) {
+        } catch (\Throwable $sError) {
             $this->db->rollBack();
-            throw $error;
+            throw $sError;
         }
-        if ($previous && $previous['sha256'] !== $hash) {
-            $oldName=$period.'-'.$previous['sha256'].'.xlsx';
-            try { if ($folder->fileExists($oldName)) $folder->getFile($oldName)->delete(); }
-            catch (\OCP\Files\NotFoundException $e) { /* Original already absent. */ }
+        if ($vPrevious && $vPrevious['sha256'] !== $sHash) {
+            $sOldName=$period.'-'.$vPrevious['sha256'].'.xlsx';
+            try { if ($vFolder->fileExists($sOldName)) $vFolder->getFile($sOldName)->delete(); }
+            catch (\OCP\Files\NotFoundException $oE) { /* Original already absent. */ }
         }
         $this->rememberReportEan($ean, $configuredEan);
-        return ['period'=>$period,'rows'=>count($intervals),'importKWh'=>$totalImport/1_000_000,
-            'exportKWh'=>$totalExport/1_000_000,'unchanged'=>false];
+        return ['period'=>$period,'rows'=>count($aIntervals),'importKWh'=>$nTotalImport/1_000_000,
+            'exportKWh'=>$nTotalExport/1_000_000,'unchanged'=>false];
     }
 
 
+    /**
+     * Najde nebo vytvoří neveřejnou složku AppData pro originály měření EG.D.
+     *
+     * Vstupy: žádné vstupní parametry.
+     * Výstup: `\OCP\Files\SimpleFS\ISimpleFolder` – soukromá složka AppData pro původní výkazy EG.D.
+     * @return \OCP\Files\SimpleFS\ISimpleFolder soukromá složka AppData pro původní výkazy EG.D
+     */
     private function reportFolder(): \OCP\Files\SimpleFS\ISimpleFolder {
         try { return $this->appData->getFolder('edg-reports'); }
-        catch (\OCP\Files\NotFoundException $e) { return $this->appData->newFolder('edg-reports'); }
+        catch (\OCP\Files\NotFoundException $oE) { return $this->appData->newFolder('edg-reports'); }
     }
 
+    /**
+     * Odstraní vybraný importovaný report EG.D a jeho intervaly bez zásahu do historie LINEA.
+     *
+     * Vstupy: `$period` (string) – měsíc reportu ve tvaru YYYY-MM; prázdné znamená výchozí výběr.
+     * Výstup: `void` – smaže zvolený import EG.D; vrátí JSON potvrzení nebo chybu.
+     *
+     * @param string $period měsíc reportu ve tvaru YYYY-MM; prázdné znamená výchozí výběr
+     * @return void smaže zvolený import EG.D; vrátí JSON potvrzení nebo chybu
+     */
     public function deleteReport(string $period): void {
-        $record = $this->report($period);
-        if (!$record) throw new \InvalidArgumentException('Unknown report.');
+        $vRecord = $this->report($period);
+        if (!$vRecord) throw new \InvalidArgumentException('Unknown report.');
         $this->db->beginTransaction();
         try {
-            foreach (['hc_gridsight_edg_intervals','hc_gridsight_edg_reports'] as $table) {
-                $qb=$this->db->getQueryBuilder();
-                $qb->delete($table)->where($qb->expr()->eq('period',$qb->createNamedParameter($period)))->executeStatement();
+            foreach (['hc_gridsight_edg_intervals','hc_gridsight_edg_reports'] as $oTable) {
+                $oQb=$this->db->getQueryBuilder();
+                $oQb->delete($oTable)->where($oQb->expr()->eq('period',$oQb->createNamedParameter($period)))->executeStatement();
             }
             $this->db->commit();
-        } catch (\Throwable $e) { $this->db->rollBack(); throw $e; }
-        $folder=$this->reportFolder(); $name=$period.'-'.$record['sha256'].'.xlsx';
-        if ($folder->fileExists($name)) $folder->getFile($name)->delete();
+        } catch (\Throwable $oE) { $this->db->rollBack(); throw $oE; }
+        $vFolder=$this->reportFolder(); $sName=$period.'-'.$vRecord['sha256'].'.xlsx';
+        if ($vFolder->fileExists($sName)) $vFolder->getFile($sName)->delete();
     }
 
+    /**
+     * Připraví export vybraných měsíčních reportů EG.D do ZIP archivu.
+     *
+     * Vstupy: `$periods` (array) – seznam měsíců YYYY-MM určených k exportu.
+     * Výstup: `string` – vrátí ZIP odpověď s vybranými reporty EG.D.
+     *
+     * @param array $periods seznam měsíců YYYY-MM určených k exportu
+     * @return string vrátí ZIP odpověď s vybranými reporty EG.D
+     */
     public function exportReports(array $periods): string {
         $periods=array_values(array_unique($periods));
         if (count($periods)<1 || count($periods)>24) throw new \InvalidArgumentException('Select 1–24 reports.');
-        $path=tempnam(sys_get_temp_dir(),'gridsight-'); $zip=new \ZipArchive();
+        $path=tempnam(sys_get_temp_dir(),'gridsight-'); $oZip=new \ZipArchive();
         try {
-            if ($zip->open($path,\ZipArchive::OVERWRITE)!==true) throw new \RuntimeException('Cannot create ZIP.');
-            $manifest=[]; $bytes=0;
+            if ($oZip->open($path,\ZipArchive::OVERWRITE)!==true) throw new \RuntimeException('Cannot create ZIP.');
+            $aManifest=[]; $vBytes=0;
             foreach ($periods as $period) {
                 if (!is_string($period) || !preg_match('/^\d{4}-\d{2}$/D',$period)) throw new \InvalidArgumentException('Invalid month.');
-                $record=$this->report($period);
-                if (!$record) throw new \InvalidArgumentException('Unknown report: '.$period);
-                $qb=$this->db->getQueryBuilder();
-                $rows=$qb->select('ts','import_mwh','export_mwh')->from('hc_gridsight_edg_intervals')
-                    ->where($qb->expr()->eq('period',$qb->createNamedParameter($period)))->orderBy('ts','ASC')->executeQuery()->fetchAllAssociative();
-                $csv="timestamp_utc,local_time,import_kwh,export_kwh\n";
-                foreach ($rows as $row) {
-                    $date=new \DateTimeImmutable('@'.$row['ts']);
-                    $csv.=$date->format('c').','.$date->setTimezone(new \DateTimeZone(self::ZONE))->format('c').','.
-                        number_format((int)$row['import_mwh']/1_000_000,6,'.','').','.number_format((int)$row['export_mwh']/1_000_000,6,'.','')."\n";
+                $vRecord=$this->report($period);
+                if (!$vRecord) throw new \InvalidArgumentException('Unknown report: '.$period);
+                $oQb=$this->db->getQueryBuilder();
+                $aRows=$oQb->select('ts','import_mwh','export_mwh')->from('hc_gridsight_edg_intervals')
+                    ->where($oQb->expr()->eq('period',$oQb->createNamedParameter($period)))->orderBy('ts','ASC')->executeQuery()->fetchAllAssociative();
+                $vCsv="timestamp_utc,local_time,import_kwh,export_kwh\n";
+                foreach ($aRows as $oRow) {
+                    $date=new \DateTimeImmutable('@'.$oRow['ts']);
+                    $vCsv.=$date->format('c').','.$date->setTimezone(new \DateTimeZone(self::ZONE))->format('c').','.
+                        number_format((int)$oRow['import_mwh']/1_000_000,6,'.','').','.number_format((int)$oRow['export_mwh']/1_000_000,6,'.','')."\n";
                 }
-                $zip->addFromString($period.'/intervals.csv',$csv); $bytes+=strlen($csv);
-                $folder=$this->reportFolder(); $name=$period.'-'.$record['sha256'].'.xlsx';
-                $record['originalIncluded']=$folder->fileExists($name);
-                if ($bytes>25_000_000) throw new \InvalidArgumentException('Export exceeds 25 MB. Select fewer months.');
-                if ($record['originalIncluded']) {
-                    $content=$folder->getFile($name)->getContent(); $bytes+=strlen($content);
-                    if ($bytes>25_000_000) throw new \InvalidArgumentException('Export exceeds 25 MB. Select fewer months.');
-                    $zip->addFromString($period.'/original.xlsx',$content);
+                $oZip->addFromString($period.'/intervals.csv',$vCsv); $vBytes+=strlen($vCsv);
+                $vFolder=$this->reportFolder(); $sName=$period.'-'.$vRecord['sha256'].'.xlsx';
+                $vRecord['originalIncluded']=$vFolder->fileExists($sName);
+                if ($vBytes>25_000_000) throw new \InvalidArgumentException('Export exceeds 25 MB. Select fewer months.');
+                if ($vRecord['originalIncluded']) {
+                    $vContent=$vFolder->getFile($sName)->getContent(); $vBytes+=strlen($vContent);
+                    if ($vBytes>25_000_000) throw new \InvalidArgumentException('Export exceeds 25 MB. Select fewer months.');
+                    $oZip->addFromString($period.'/original.xlsx',$vContent);
                 }
-                $manifest[]=$record;
+                $aManifest[]=$vRecord;
             }
-            $zip->addFromString('manifest.json',json_encode(['version'=>1,'timezone'=>self::ZONE,'databaseEnergyUnit'=>'milliWh','reports'=>$manifest],JSON_PRETTY_PRINT|JSON_THROW_ON_ERROR));
-            $zip->close(); return (string)file_get_contents($path);
+            $oZip->addFromString('manifest.json',json_encode(['version'=>1,'timezone'=>self::ZONE,'databaseEnergyUnit'=>'milliWh','reports'=>$aManifest],JSON_PRETTY_PRINT|JSON_THROW_ON_ERROR));
+            $oZip->close(); return (string)file_get_contents($path);
         } finally { if (is_file($path)) unlink($path); }
     }
 
+    /**
+     * Ověří a uloží ruční vyúčtování prodeje Delta Green.
+     *
+     * Vstupy: `$statement` (array) – položky ručního vyúčtování Delta Green.
+     * Výstup: `array` – ověřené a uložené ruční vyúčtování prodeje energie.
+     *
+     * @param array $statement položky ručního vyúčtování Delta Green
+     * @return array ověřené a uložené ruční vyúčtování prodeje energie
+     */
     public function saveStatement(array $statement): array {
-        $from=(string)($statement['from']??''); $to=(string)($statement['to']??'');
-        $amount=$statement['amountCzk']??null;
-        if (!$this->isDate($from)||!$this->isDate($to)||$from>$to || !is_numeric($amount)||!is_finite((float)$amount)||abs((float)$amount)>10000000 || (new \DateTimeImmutable($from))->diff(new \DateTimeImmutable($to))->days>366)
+        $sFrom=(string)($statement['from']??''); $sTo=(string)($statement['to']??'');
+        $vAmount=$statement['amountCzk']??null;
+        if (!$this->isDate($sFrom)||!$this->isDate($sTo)||$sFrom>$sTo || !is_numeric($vAmount)||!is_finite((float)$vAmount)||abs((float)$vAmount)>10000000 || (new \DateTimeImmutable($sFrom))->diff(new \DateTimeImmutable($sTo))->days>366)
             throw new \InvalidArgumentException('Enter valid dates and total payment in CZK.');
         $ean=trim((string)($statement['saleEan']??''));
         if ($ean!==''&&!preg_match('/^\d{18}$/D',$ean)) throw new \InvalidArgumentException('Sale EAN must have 18 digits.');
-        $document=trim((string)($statement['document']??''));
-        if (mb_strlen($document)>80) throw new \InvalidArgumentException('Document number is too long.');
-        $rows=$this->statementRows(); $id=(string)($statement['id']??'');
+        $vDocument=trim((string)($statement['document']??''));
+        if (mb_strlen($vDocument)>80) throw new \InvalidArgumentException('Document number is too long.');
+        $aRows=$this->statementRows(); $id=(string)($statement['id']??'');
         if ($id==='') $id=bin2hex(random_bytes(12));
         if (!preg_match('/^[a-f0-9]{24}$/D',$id)) throw new \InvalidArgumentException('Invalid statement ID.');
-        foreach ($rows as $oldId=>$old) if ($oldId!==$id && $old['from']===$from && $old['to']===$to && $old['saleEan']===$ean)
+        foreach ($aRows as $sOldId=>$vOld) if ($sOldId!==$id && $vOld['from']===$sFrom && $vOld['to']===$sTo && $vOld['saleEan']===$ean)
             throw new \InvalidArgumentException('This period already exists. Edit its existing row.');
-        if (count($rows)>=600&&!isset($rows[$id])) throw new \InvalidArgumentException('Maximum 600 statements.');
-        $rows[$id]=['id'=>$id,'from'=>$from,'to'=>$to,'amountCzk'=>round((float)$amount,2),'saleEan'=>$ean,'document'=>$document];
-        $this->config->setAppValue(Application::APP_ID,'sale_statements',json_encode($rows,JSON_THROW_ON_ERROR));
-        return $rows[$id];
+        if (count($aRows)>=600&&!isset($aRows[$id])) throw new \InvalidArgumentException('Maximum 600 statements.');
+        $aRows[$id]=['id'=>$id,'from'=>$sFrom,'to'=>$sTo,'amountCzk'=>round((float)$vAmount,2),'saleEan'=>$ean,'document'=>$vDocument];
+        $this->config->setAppValue(Application::APP_ID,'sale_statements',json_encode($aRows,JSON_THROW_ON_ERROR));
+        return $aRows[$id];
     }
 
+    /**
+     * Načte uložené řádky ručních vyúčtování.
+     *
+     * Vstupy: žádné vstupní parametry.
+     * Výstup: `array` – mapa jednotlivých ručních vyúčtování uložených v konfiguraci.
+     * @return array mapa jednotlivých ručních vyúčtování uložených v konfiguraci
+     */
     private function statementRows(): array {
-        $rows=json_decode($this->config->getAppValue(Application::APP_ID,'sale_statements','{}'),true);
-        return is_array($rows)?$rows:[];
+        $aRows=json_decode($this->config->getAppValue(Application::APP_ID,'sale_statements','{}'),true);
+        return is_array($aRows)?$aRows:[];
     }
 
+    /**
+     * Odstraní vybrané vyúčtování prodeje Delta Green.
+     *
+     * Vstupy: `$id` (string) – význam parametru podle rozhraní metody.
+     * Výstup: `void` – odstraní záznam vyúčtování podle identifikátoru; nevrací hodnotu.
+     *
+     * @param string $id význam parametru podle rozhraní metody
+     * @return void odstraní záznam vyúčtování podle identifikátoru; nevrací hodnotu
+     */
     public function deleteStatement(string $id): void {
-        $rows=$this->statementRows();
-        if (!isset($rows[$id])) throw new \InvalidArgumentException('Unknown statement.');
-        unset($rows[$id]); $this->config->setAppValue(Application::APP_ID,'sale_statements',json_encode($rows,JSON_THROW_ON_ERROR));
+        $aRows=$this->statementRows();
+        if (!isset($aRows[$id])) throw new \InvalidArgumentException('Unknown statement.');
+        unset($aRows[$id]); $this->config->setAppValue(Application::APP_ID,'sale_statements',json_encode($aRows,JSON_THROW_ON_ERROR));
     }
 
+    /**
+     * Vrátí přehled uložených vyúčtování prodeje.
+     *
+     * Vstupy: žádné vstupní parametry.
+     * Výstup: `array` – seznam vyúčtování s doplněným pokrytím historie a porovnáním prodeje.
+     * @return array seznam vyúčtování s doplněným pokrytím historie a porovnáním prodeje
+     */
     private function statements(): array {
-        $rows=array_values($this->statementRows());
-        foreach ($rows as &$row) {
-            $qb=$this->db->getQueryBuilder();
-            $daily=$qb->select('*')->from('hc_gridsight_daily')->where($qb->expr()->gte('day',$qb->createNamedParameter($row['from'])))
-                ->andWhere($qb->expr()->lte('day',$qb->createNamedParameter($row['to'])))->executeQuery()->fetchAllAssociative();
-            $zone=new \DateTimeZone(self::ZONE); $start=new \DateTimeImmutable($row['from'],$zone);
-            $end=(new \DateTimeImmutable($row['to'],$zone))->modify('+1 day');
-            $expectedDays=(int)$start->diff($end)->days; $complete=count($daily)===$expectedDays; $sale=0; $coverage=0;
-            foreach ($daily as $day) {
-                $date=new \DateTimeImmutable($day['day'],$zone); $seconds=$date->modify('+1 day')->getTimestamp()-$date->getTimestamp();
-                if ((int)$day['coverage_sec']<$seconds*.995 || (int)$day['unpriced_export_mwh']>0) $complete=false;
-                $coverage+=(int)$day['coverage_sec']; $sale+=(int)$day['sale_microczk'];
+        $aRows=array_values($this->statementRows());
+        foreach ($aRows as &$oRow) {
+            $oQb=$this->db->getQueryBuilder();
+            $vDaily=$oQb->select('*')->from('hc_gridsight_daily')->where($oQb->expr()->gte('day',$oQb->createNamedParameter($oRow['from'])))
+                ->andWhere($oQb->expr()->lte('day',$oQb->createNamedParameter($oRow['to'])))->executeQuery()->fetchAllAssociative();
+            $oZone=new \DateTimeZone(self::ZONE); $vStart=new \DateTimeImmutable($oRow['from'],$oZone);
+            $oEnd=(new \DateTimeImmutable($oRow['to'],$oZone))->modify('+1 day');
+            $nExpectedDays=(int)$vStart->diff($oEnd)->days; $bComplete=count($vDaily)===$nExpectedDays; $nSale=0; $nCoverage=0;
+            foreach ($vDaily as $sDay) {
+                $date=new \DateTimeImmutable($sDay['day'],$oZone); $nSeconds=$date->modify('+1 day')->getTimestamp()-$date->getTimestamp();
+                if ((int)$sDay['coverage_sec']<$nSeconds*.995 || (int)$sDay['unpriced_export_mwh']>0) $bComplete=false;
+                $nCoverage+=(int)$sDay['coverage_sec']; $nSale+=(int)$sDay['sale_microczk'];
             }
-             $qb=$this->db->getQueryBuilder();
-            $intervals=$qb->select('ts','export_mwh')->from('hc_gridsight_edg_intervals')->where($qb->expr()->gte('ts',$qb->createNamedParameter($start->getTimestamp())))
-                ->andWhere($qb->expr()->lt('ts',$qb->createNamedParameter($end->getTimestamp())))->executeQuery()->fetchAllAssociative();
-            $row['distributorExportKWh']=count($intervals)===(int)(($end->getTimestamp()-$start->getTimestamp())/900) ? array_sum(array_column($intervals,'export_mwh'))/1_000_000 : null;
-            $row['spotCzk']=$complete?$sale/1_000_000:null;
-            $row['differenceCzk']=$complete?$row['amountCzk']-$row['spotCzk']:null;
-            $row['coveragePct']=round(min(100,$coverage/max(1,$end->getTimestamp()-$start->getTimestamp())*100),2);
+             $oQb=$this->db->getQueryBuilder();
+            $aIntervals=$oQb->select('ts','export_mwh')->from('hc_gridsight_edg_intervals')->where($oQb->expr()->gte('ts',$oQb->createNamedParameter($vStart->getTimestamp())))
+                ->andWhere($oQb->expr()->lt('ts',$oQb->createNamedParameter($oEnd->getTimestamp())))->executeQuery()->fetchAllAssociative();
+            $oRow['distributorExportKWh']=count($aIntervals)===(int)(($oEnd->getTimestamp()-$vStart->getTimestamp())/900) ? array_sum(array_column($aIntervals,'export_mwh'))/1_000_000 : null;
+            $oRow['spotCzk']=$bComplete?$nSale/1_000_000:null;
+            $oRow['differenceCzk']=$bComplete?$oRow['amountCzk']-$oRow['spotCzk']:null;
+            $oRow['coveragePct']=round(min(100,$nCoverage/max(1,$oEnd->getTimestamp()-$vStart->getTimestamp())*100),2);
         }
-        unset($row); usort($rows,static fn(array $a,array $b):int=>strcmp($b['from'],$a['from'])); return $rows;
+        unset($oRow); usort($aRows,/** Seřadí vyúčtování sestupně podle data začátku. Vstupy: dva záznamy vyúčtování. Výstup: `int` – číselný součet nebo porovnávací výsledek. */ static fn(array $vA,array $vB):int=>strcmp($vB['from'],$vA['from'])); return $aRows;
     }
 
+    /**
+     * Při prvním importu zapamatuje EAN pro další ověřování identity odběrného místa.
+     *
+     * Vstupy: `$ean` (string) – EAN odběrného místa uvedený v importu; `$configuredEan` (string) – dosavadní nastavený EAN, pokud již existuje.
+     * Výstup: `void` – uloží EAN z prvního importu do profilu, pokud dosud nebyl nastaven; nevrací hodnotu.
+     *
+     * @param string $ean EAN odběrného místa uvedený v importu
+     * @param string $configuredEan dosavadní nastavený EAN, pokud již existuje
+     * @return void uloží EAN z prvního importu do profilu, pokud dosud nebyl nastaven; nevrací hodnotu
+     */
     private function rememberReportEan(string $ean, string $configuredEan): void {
         if ($configuredEan !== '') return;
         $profile = $this->profile();
@@ -519,219 +647,268 @@ final class EnergyAnalysisService {
         $this->config->setAppValue(Application::APP_ID, 'analysis_profile', json_encode($profile, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
     }
 
+    /**
+     * Načte detail vybraného měsíčního reportu EG.D.
+     *
+     * Vstupy: `$period` (string) – měsíc reportu ve tvaru YYYY-MM; prázdné znamená výchozí výběr.
+     * Výstup: `?array` – záznam a metadata měsíčního výkazu EG.D, nebo null při absenci.
+     *
+     * @param string $period měsíc reportu ve tvaru YYYY-MM; prázdné znamená výchozí výběr
+     * @return ?array záznam a metadata měsíčního výkazu EG.D, nebo null při absenci
+     */
     private function report(string $period): ?array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')->from('hc_gridsight_edg_reports')->where($qb->expr()->eq('period',$qb->createNamedParameter($period)));
-        return $qb->executeQuery()->fetchAssociative() ?: null;
+        $oQb = $this->db->getQueryBuilder();
+        $oQb->select('*')->from('hc_gridsight_edg_reports')->where($oQb->expr()->eq('period',$oQb->createNamedParameter($period)));
+        return $oQb->executeQuery()->fetchAssociative() ?: null;
     }
 
     /** A near-complete local day identifies which electrical level occupies ~20 hours. */
+    /**
+     * Odvodí polaritu vstupu Shelly HDO z většiny čtvrthodinových pozorování během dne.
+     *
+     * Vstupy: `$evidence` (array) – čtvrthodinové důkazy stavu Shelly HDO.
+     * Výstup: `array` – důkazní pole mapování hodnoty Shelly na tarif NT/VT.
+     *
+     * @param array $evidence čtvrthodinové důkazy stavu Shelly HDO
+     * @return array důkazní pole mapování hodnoty Shelly na tarif NT/VT
+     */
     private function shellyPolarity(array $evidence): array {
-        $zone = new \DateTimeZone(self::ZONE);
-        $days = [];
-        foreach ($evidence as $ts=>$reading) {
-            $day = (new \DateTimeImmutable('@'.$ts))->setTimezone($zone)->format('Y-m-d');
-            $days[$day][$reading['state'] ? 'on' : 'off'] = ($days[$day][$reading['state'] ? 'on' : 'off'] ?? 0) + 900;
+        $oZone = new \DateTimeZone(self::ZONE);
+        $aDays = [];
+        foreach ($evidence as $nTs=>$vReading) {
+            $sDay = (new \DateTimeImmutable('@'.$nTs))->setTimezone($oZone)->format('Y-m-d');
+            $aDays[$sDay][$vReading['state'] ? 'on' : 'off'] = ($aDays[$sDay][$vReading['state'] ? 'on' : 'off'] ?? 0) + 900;
         }
-        $votes = [];
-        foreach ($days as $day=>$durations) {
-            $start = new \DateTimeImmutable($day.' 00:00:00',$zone);
-            $length = $start->modify('+1 day')->getTimestamp()-$start->getTimestamp();
-            $on = $durations['on'] ?? 0; $off = $durations['off'] ?? 0;
-            if ($on+$off < $length * .985) continue;
+        $aVotes = [];
+        foreach ($aDays as $sDay=>$vDurations) {
+            $vStart = new \DateTimeImmutable($sDay.' 00:00:00',$oZone);
+            $nLength = $vStart->modify('+1 day')->getTimestamp()-$vStart->getTimestamp();
+            $vOn = $vDurations['on'] ?? 0; $vOff = $vDurations['off'] ?? 0;
+            if ($vOn+$vOff < $nLength * .985) continue;
             // Offset by one hour on the two daylight-saving transition days.
-            $short = 4*3600 + ($length-86400)/2;
-            $long = 20*3600 + ($length-86400)/2;
-            if (abs($on-$long) <= 2700 && abs($off-$short) <= 2700) $votes[] = true;
-            elseif (abs($off-$long) <= 2700 && abs($on-$short) <= 2700) $votes[] = false;
+            $vShort = 4*3600 + ($nLength-86400)/2;
+            $vLong = 20*3600 + ($nLength-86400)/2;
+            if (abs($vOn-$vLong) <= 2700 && abs($vOff-$vShort) <= 2700) $aVotes[] = true;
+            elseif (abs($vOff-$vLong) <= 2700 && abs($vOn-$vShort) <= 2700) $aVotes[] = false;
         }
-        if ($votes === [] || count(array_unique($votes, SORT_REGULAR)) !== 1) {
-            return ['onMeansNt'=>null,'days'=>count($votes)];
+        if ($aVotes === [] || count(array_unique($aVotes, SORT_REGULAR)) !== 1) {
+            return ['onMeansNt'=>null,'days'=>count($aVotes)];
         }
-        return ['onMeansNt'=>$votes[0],'days'=>count($votes)];
+        return ['onMeansNt'=>$aVotes[0],'days'=>count($aVotes)];
     }
 
+    /**
+     * Určí tarif VT/NT z platného rozpisu nebo ověřené historie Shelly.
+     *
+     * Vstupy: `$timestamp` (int) – unixový čas analyzovaného měření (s); `$profile` (array) – aktuální profil odběrného místa, ceníků a HDO; `$evidence` (array) – čtvrthodinové důkazy stavu Shelly HDO; `$onMeansNt` (?bool) – dříve odvozené mapování signálu Shelly na NT; null pokud neurčeno.
+     * Výstup: `array` – tarif NT/VT a způsob jeho určení, případně stav bez spolehlivého důkazu.
+     *
+     * @param int $timestamp unixový čas analyzovaného měření (s)
+     * @param array $profile aktuální profil odběrného místa, ceníků a HDO
+     * @param array $evidence čtvrthodinové důkazy stavu Shelly HDO
+     * @param ?bool $onMeansNt dříve odvozené mapování signálu Shelly na NT; null pokud neurčeno
+     * @return array tarif NT/VT a způsob jeho určení, případně stav bez spolehlivého důkazu
+     */
     private function tariff(int $timestamp, array $profile, array $evidence, ?bool $onMeansNt): array {
         $date = (new \DateTimeImmutable('@' . $timestamp))->setTimezone(new \DateTimeZone(self::ZONE));
-        $day = $date->format('Y-m-d');
+        $sDay = $date->format('Y-m-d');
         foreach ($profile['hdoSchedules'] ?? [] as $schedule) {
-            if ($day < $schedule['from'] || $day > $schedule['to']) continue;
+            if ($sDay < $schedule['from'] || $sDay > $schedule['to']) continue;
             if (!$this->scheduleComplete($schedule, $profile)) continue;
-            $minute = (int)$date->format('H') * 60 + (int)$date->format('i');
-            foreach ($schedule['ntWindows'] as [$from,$to]) {
-                if ($minute >= $from && $minute < $to) return ['tariff'=>'NT','source'=>'schedule'];
+            $vMinute = (int)$date->format('H') * 60 + (int)$date->format('i');
+            foreach ($schedule['ntWindows'] as [$sFrom,$sTo]) {
+                if ($vMinute >= $sFrom && $vMinute < $sTo) return ['tariff'=>'NT','source'=>'schedule'];
             }
             return ['tariff'=>'VT','source'=>'schedule'];
         }
-        $reading = $evidence[$timestamp] ?? null;
-        if ($onMeansNt === null || $reading === null) return ['tariff'=>null,'source'=>null];
-        return ['tariff'=>$reading['state'] === $onMeansNt ? 'NT' : 'VT','source'=>$reading['source']];
+        $vReading = $evidence[$timestamp] ?? null;
+        if ($onMeansNt === null || $vReading === null) return ['tariff'=>null,'source'=>null];
+        return ['tariff'=>$vReading['state'] === $onMeansNt ? 'NT' : 'VT','source'=>$vReading['source']];
     }
 
     /** D57d must not treat an incomplete list of NT windows as VT for the rest of the day. */
+    /**
+     * Ověří úplnost nízkotarifních oken HDO; nezaměňuje chybějící interval za vysoký tarif.
+     *
+     * Vstupy: `$schedule` (array) – časová okna spínání nízkého tarifu; `$profile` (array) – aktuální profil odběrného místa, ceníků a HDO.
+     * Výstup: `bool` – true, pokud rozpis pokrývá požadované nízkotarifní intervaly.
+     *
+     * @param array $schedule časová okna spínání nízkého tarifu
+     * @param array $profile aktuální profil odběrného místa, ceníků a HDO
+     * @return bool true, pokud rozpis pokrývá požadované nízkotarifní intervaly
+     */
     private function scheduleComplete(array $schedule, array $profile): bool {
         if (strcasecmp((string)($profile['distributionTariff'] ?? ''),'D57d') !== 0) return true;
-        $minutes = 0;
-        foreach ($schedule['ntWindows'] ?? [] as [$from,$to]) $minutes += $to-$from;
-        return $minutes === 1200;
+        $nMinutes = 0;
+        foreach ($schedule['ntWindows'] ?? [] as [$sFrom,$sTo]) $nMinutes += $sTo-$sFrom;
+        return $nMinutes === 1200;
     }
 
+    /**
+     * Vrátí přehled účtování za vybrané období včetně energetických a cenových součtů.
+     *
+     * Vstupy: `$period` (string) – měsíc reportu ve tvaru YYYY-MM; prázdné znamená výchozí výběr.
+     * Výstup: `array` – přehled fakturačních dat, cen, intervalů a porovnání LINEA s EG.D za měsíc.
+     *
+     * @param string $period měsíc reportu ve tvaru YYYY-MM; prázdné znamená výchozí výběr
+     * @return array přehled fakturačních dat, cen, intervalů a porovnání LINEA s EG.D za měsíc
+     */
     public function overview(string $period = ''): array {
         $profile = $this->profile();
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
+        $oQb = $this->db->getQueryBuilder();
+        $oQb->select('*')
             ->from('hc_gridsight_edg_reports')->orderBy('period','DESC')->setMaxResults(120);
-        $reports = $qb->executeQuery()->fetchAllAssociative();
-        if ($period === '' && $reports !== []) $period = (string)$reports[0]['period'];
+        $aReports = $oQb->executeQuery()->fetchAllAssociative();
+        if ($period === '' && $aReports !== []) $period = (string)$aReports[0]['period'];
         if ($period !== '' && (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/D',$period) || !$this->report($period))) {
             throw new \InvalidArgumentException('Unknown ED.G report month.');
         }
-        $recentEvidence = $this->history->hdoEvidence(time()-3*86400, time(), false);
-        $recentShelly = $this->shellyPolarity($recentEvidence);
-        $recentShelly['observedQuarters'] = count($recentEvidence);
-        $result = ['statements'=>$this->statements(), 'profile'=>$profile,'shellyStatus'=>$recentShelly,'reports'=>array_map(static fn(array $r): array => [
-            'period'=>$r['period'],'ean'=>$r['ean'],'rows'=>(int)$r['row_count'],
-            'importKWh'=>(int)$r['import_mwh']/1_000_000,
-            'exportKWh'=>(int)$r['export_mwh']/1_000_000,
-            'importedAt'=>(int)$r['imported_at'],
-        ],$reports),'selectedPeriod'=>$period,'month'=>null];
-        if ($period === '') return $result;
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('ts','import_mwh','export_mwh')->from('hc_gridsight_edg_intervals')
-            ->where($qb->expr()->eq('period',$qb->createNamedParameter($period)))->orderBy('ts','ASC');
-        $records = $qb->executeQuery()->fetchAllAssociative();
-        if ($records === []) throw new \RuntimeException('Imported report intervals are missing.');
-        $lastDay = (new \DateTimeImmutable($period . '-01'))->modify('last day of this month')->format('Y-m-d');
-        $priceByDay = [];
-        $daysInMonth = (int)(new \DateTimeImmutable($lastDay))->format('j');
-        $fixed = 0.0;
-        $pricesValid = true;
-        $firstPricedDay = null; $lastPricedDay = null; $pricedDays = 0;
-        for ($dayNumber = 1; $dayNumber <= $daysInMonth; $dayNumber++) {
-            $dayKey = $period . '-' . str_pad((string)$dayNumber, 2, '0', STR_PAD_LEFT);
-            $priceByDay[$dayKey] = null;
-            foreach ($profile['pricePeriods'] ?? [] as $candidate) {
-                if ($candidate['from'] <= $dayKey && $candidate['to'] >= $dayKey) {
-                    $priceByDay[$dayKey] = $candidate;
-                    $fixed += (float)$candidate['fixedCzkMonth'] / $daysInMonth;
-                    $firstPricedDay ??= $dayKey;
-                    $lastPricedDay = $dayKey;
-                    $pricedDays++;
+        $vRecentEvidence = $this->history->hdoEvidence(time()-3*86400, time(), false);
+        $vRecentShelly = $this->shellyPolarity($vRecentEvidence);
+        $vRecentShelly['observedQuarters'] = count($vRecentEvidence);
+        $vResult = ['statements'=>$this->statements(), 'profile'=>$profile,'shellyStatus'=>$vRecentShelly,'reports'=>array_map(/** Sestaví veřejný souhrn importovaného měsíčního výkazu EG.D. Vstupy: databázový záznam výkazu EG.D. Výstup: `array` – odvozený datový záznam. */ static fn(array $vR): array => [
+            'period'=>$vR['period'],'ean'=>$vR['ean'],'rows'=>(int)$vR['row_count'],
+            'importKWh'=>(int)$vR['import_mwh']/1_000_000,
+            'exportKWh'=>(int)$vR['export_mwh']/1_000_000,
+            'importedAt'=>(int)$vR['imported_at'],
+        ],$aReports),'selectedPeriod'=>$period,'month'=>null];
+        if ($period === '') return $vResult;
+        $oQb = $this->db->getQueryBuilder();
+        $oQb->select('ts','import_mwh','export_mwh')->from('hc_gridsight_edg_intervals')
+            ->where($oQb->expr()->eq('period',$oQb->createNamedParameter($period)))->orderBy('ts','ASC');
+        $vRecords = $oQb->executeQuery()->fetchAllAssociative();
+        if ($vRecords === []) throw new \RuntimeException('Imported report intervals are missing.');
+        $sLastDay = (new \DateTimeImmutable($period . '-01'))->modify('last day of this month')->format('Y-m-d');
+        $aPriceByDay = [];
+        $nDaysInMonth = (int)(new \DateTimeImmutable($sLastDay))->format('j');
+        $nFixed = 0.0;
+        $bPricesValid = true;
+        $sFirstPricedDay = null; $sLastPricedDay = null; $nPricedDays = 0;
+        for ($nDayNumber = 1; $nDayNumber <= $nDaysInMonth; $nDayNumber++) {
+            $sDayKey = $period . '-' . str_pad((string)$nDayNumber, 2, '0', STR_PAD_LEFT);
+            $aPriceByDay[$sDayKey] = null;
+            foreach ($profile['pricePeriods'] ?? [] as $vCandidate) {
+                if ($vCandidate['from'] <= $sDayKey && $vCandidate['to'] >= $sDayKey) {
+                    $aPriceByDay[$sDayKey] = $vCandidate;
+                    $nFixed += (float)$vCandidate['fixedCzkMonth'] / $nDaysInMonth;
+                    $sFirstPricedDay ??= $sDayKey;
+                    $sLastPricedDay = $sDayKey;
+                    $nPricedDays++;
                     break;
                 }
             }
-            if ($priceByDay[$dayKey] === null) $pricesValid = false;
+            if ($aPriceByDay[$sDayKey] === null) $bPricesValid = false;
         }
-        $zone = new \DateTimeZone(self::ZONE);
-        $first = (int)$records[0]['ts'];
-        $last = (int)$records[count($records)-1]['ts'];
-        $evidence = $this->history->hdoEvidence($first-7*86400,$last+7*86400+900);
-        $calibration = $this->shellyPolarity($evidence);
-        $onMeansNt = $calibration['onMeansNt'];
-        $incompleteSchedules = array_values(array_map(static fn(array $s): string => $s['from'].'–'.$s['to'],
-            array_filter($profile['hdoSchedules'] ?? [], fn(array $s): bool => !$this->scheduleComplete($s,$profile))));
-        $daily = [];
-        $intervals = [];
-        $vtKWh = $ntKWh = $unknownKWh = $variable = 0.0;
-        $sources = ['schedule'=>0,'shelly'=>0,'snapshot'=>0,'unknown'=>0];
-        foreach ($records as $record) {
-            $ts = (int)$record['ts'];
-            $date = (new \DateTimeImmutable('@'.$ts))->setTimezone($zone);
-            $day = $date->format('Y-m-d');
-            $tariffResult = $this->tariff($ts,$profile,$evidence,$onMeansNt);
-            $tariff = $tariffResult['tariff'];
-            $source = $tariffResult['source'] ?? 'unknown';
-            $sources[$source ?? 'unknown']++;
-            $price = $priceByDay[$day];
-            $green = !empty($price['greenEnabled']) ? (float)$price['greenCzkKWh'] : 0.0;
-            $vtPrice = (float)($price['vtCzkKWh'] ?? 0) + $green;
-            $ntPrice = (float)($price['ntCzkKWh'] ?? 0) + $green;
-            $import = (int)$record['import_mwh']/1_000_000;
-            $export = (int)$record['export_mwh']/1_000_000;
-            $cost = $price !== null && $tariff !== null ? $import * ($tariff === 'NT' ? $ntPrice : $vtPrice) : null;
-            $daily[$day] ??= ['day'=>$day,'importKWh'=>0.0,'exportKWh'=>0.0,'vtKWh'=>0.0,'ntKWh'=>0.0,'unknownKWh'=>0.0,'unknownIntervals'=>0,'variableCzk'=>0.0,'priceAvailable'=>$price !== null];
-            $daily[$day]['importKWh'] += $import;
-            $daily[$day]['exportKWh'] += $export;
-            if ($tariff === 'NT') { $ntKWh += $import; $daily[$day]['ntKWh'] += $import; }
-            elseif ($tariff === 'VT') { $vtKWh += $import; $daily[$day]['vtKWh'] += $import; }
-            else { $unknownKWh += $import; $daily[$day]['unknownKWh'] += $import; $daily[$day]['unknownIntervals']++; }
-            if ($cost !== null) { $variable += $cost; $daily[$day]['variableCzk'] += $cost; }
-            $intervals[] = ['ts'=>$ts,'localTime'=>$date->format('Y-m-d H:i'),'day'=>$day,'tariff'=>$tariff,'tariffSource'=>$source,
-                'importKWh'=>$import,'exportKWh'=>$export,'variableCzk'=>$cost,
-                'priceVt'=>$price !== null ? $vtPrice : null,'priceNt'=>$price !== null ? $ntPrice : null];
+        $oZone = new \DateTimeZone(self::ZONE);
+        $nFirst = (int)$vRecords[0]['ts'];
+        $nLast = (int)$vRecords[count($vRecords)-1]['ts'];
+        $evidence = $this->history->hdoEvidence($nFirst-7*86400,$nLast+7*86400+900);
+        $vCalibration = $this->shellyPolarity($evidence);
+        $onMeansNt = $vCalibration['onMeansNt'];
+        $vIncompleteSchedules = array_values(array_map(/** Formátuje rozpis HDO do textu od–do. Vstupy: záznam HDO s časovými poli from a to. Výstup: `string` – formátovaný text. */ static fn(array $vS): string => $vS['from'].'–'.$vS['to'],
+            array_filter($profile['hdoSchedules'] ?? [], /** Vybere pouze časová okna HDO, jejichž rozpis není úplný. Vstupy: časové okno HDO a pravidla ověření úplnosti. Výstup: `bool` – true/false podle uvedené podmínky. */ fn(array $vS): bool => !$this->scheduleComplete($vS,$profile))));
+        $vDaily = [];
+        $aIntervals = [];
+        $nVtKWh = $nNtKWh = $nUnknownKWh = $vVariable = 0.0;
+        $vSources = ['schedule'=>0,'shelly'=>0,'snapshot'=>0,'unknown'=>0];
+        foreach ($vRecords as $vRecord) {
+            $nTs = (int)$vRecord['ts'];
+            $date = (new \DateTimeImmutable('@'.$nTs))->setTimezone($oZone);
+            $sDay = $date->format('Y-m-d');
+            $vTariffResult = $this->tariff($nTs,$profile,$evidence,$onMeansNt);
+            $vTariff = $vTariffResult['tariff'];
+            $sSource = $vTariffResult['source'] ?? 'unknown';
+            $vSources[$sSource ?? 'unknown']++;
+            $aPrice = $aPriceByDay[$sDay];
+            $nGreen = !empty($aPrice['greenEnabled']) ? (float)$aPrice['greenCzkKWh'] : 0.0;
+            $nVtPrice = (float)($aPrice['vtCzkKWh'] ?? 0) + $nGreen;
+            $nNtPrice = (float)($aPrice['ntCzkKWh'] ?? 0) + $nGreen;
+            $nImport = (int)$vRecord['import_mwh']/1_000_000;
+            $nExport = (int)$vRecord['export_mwh']/1_000_000;
+            $vCost = $aPrice !== null && $vTariff !== null ? $nImport * ($vTariff === 'NT' ? $nNtPrice : $nVtPrice) : null;
+            $vDaily[$sDay] ??= ['day'=>$sDay,'importKWh'=>0.0,'exportKWh'=>0.0,'vtKWh'=>0.0,'ntKWh'=>0.0,'unknownKWh'=>0.0,'unknownIntervals'=>0,'variableCzk'=>0.0,'priceAvailable'=>$aPrice !== null];
+            $vDaily[$sDay]['importKWh'] += $nImport;
+            $vDaily[$sDay]['exportKWh'] += $nExport;
+            if ($vTariff === 'NT') { $nNtKWh += $nImport; $vDaily[$sDay]['ntKWh'] += $nImport; }
+            elseif ($vTariff === 'VT') { $nVtKWh += $nImport; $vDaily[$sDay]['vtKWh'] += $nImport; }
+            else { $nUnknownKWh += $nImport; $vDaily[$sDay]['unknownKWh'] += $nImport; $vDaily[$sDay]['unknownIntervals']++; }
+            if ($vCost !== null) { $vVariable += $vCost; $vDaily[$sDay]['variableCzk'] += $vCost; }
+            $aIntervals[] = ['ts'=>$nTs,'localTime'=>$date->format('Y-m-d H:i'),'day'=>$sDay,'tariff'=>$vTariff,'tariffSource'=>$sSource,
+                'importKWh'=>$nImport,'exportKWh'=>$nExport,'variableCzk'=>$vCost,
+                'priceVt'=>$aPrice !== null ? $nVtPrice : null,'priceNt'=>$aPrice !== null ? $nNtPrice : null];
         }
-        $tariffsComplete = count(array_filter($intervals,static fn(array $row): bool => $row['tariff'] === null)) === 0;
-        $priced = $pricesValid && $tariffsComplete;
-        $eligibleTariffsComplete = $pricedDays > 0 && count(array_filter($intervals, static fn(array $row): bool =>
-            $row['priceVt'] !== null && $row['tariff'] === null)) === 0;
-        $pricedFixed = round($fixed,2);
-        $partial = !$pricesValid && $pricedDays > 0 ? [
-            'from'=>$firstPricedDay,'to'=>$lastPricedDay,'days'=>$pricedDays,
-            'complete'=>$eligibleTariffsComplete,
-            'variableCzk'=>$eligibleTariffsComplete ? round($variable,2) : null,
-            'fixedCzk'=>$pricedFixed,
-            'estimatedTotalCzk'=>$eligibleTariffsComplete ? round($variable+$fixed,2) : null,
+        $bTariffsComplete = count(array_filter($aIntervals,/** Označí interval, pro který nebylo určeno NT ani VT. Vstupy: čtvrthodinový interval EG.D. Výstup: `bool` – true/false podle uvedené podmínky. */ static fn(array $oRow): bool => $oRow['tariff'] === null)) === 0;
+        $vPriced = $bPricesValid && $bTariffsComplete;
+        $bEligibleTariffsComplete = $nPricedDays > 0 && count(array_filter($aIntervals, /** Označí ocenitelný interval s chybějícím tarifem. Vstupy: čtvrthodinový interval a dostupnost ceníku. Výstup: `bool` – true/false podle uvedené podmínky. */ static fn(array $oRow): bool =>
+            $oRow['priceVt'] !== null && $oRow['tariff'] === null)) === 0;
+        $vPricedFixed = round($nFixed,2);
+        $vPartial = !$bPricesValid && $nPricedDays > 0 ? [
+            'from'=>$sFirstPricedDay,'to'=>$sLastPricedDay,'days'=>$nPricedDays,
+            'complete'=>$bEligibleTariffsComplete,
+            'variableCzk'=>$bEligibleTariffsComplete ? round($vVariable,2) : null,
+            'fixedCzk'=>$vPricedFixed,
+            'estimatedTotalCzk'=>$bEligibleTariffsComplete ? round($vVariable+$nFixed,2) : null,
         ] : null;
-        $fixed = $pricesValid ? round($fixed,2) : null;
-        $report = $this->report($period);
-        $summary = ['importKWh'=>(int)$report['import_mwh']/1_000_000,
-            'exportKWh'=>(int)$report['export_mwh']/1_000_000,
-            'vtKWh'=>$vtKWh,'ntKWh'=>$ntKWh,'unknownKWh'=>$unknownKWh,
-            'variableCzk'=>$priced ? round($variable,2) : null,
-            'fixedCzk'=>$fixed,'estimatedTotalCzk'=>$priced ? round($variable+$fixed,2) : null,
-            'priceValid'=>$pricesValid,'tariffComplete'=>$tariffsComplete,
-            'tariffSources'=>$sources,'shellyCalibration'=>$calibration,
-            'partialPrice'=>$partial,'incompleteSchedules'=>$incompleteSchedules];
+        $nFixed = $bPricesValid ? round($nFixed,2) : null;
+        $vReport = $this->report($period);
+        $vSummary = ['importKWh'=>(int)$vReport['import_mwh']/1_000_000,
+            'exportKWh'=>(int)$vReport['export_mwh']/1_000_000,
+            'vtKWh'=>$nVtKWh,'ntKWh'=>$nNtKWh,'unknownKWh'=>$nUnknownKWh,
+            'variableCzk'=>$vPriced ? round($vVariable,2) : null,
+            'fixedCzk'=>$nFixed,'estimatedTotalCzk'=>$vPriced ? round($vVariable+$nFixed,2) : null,
+            'priceValid'=>$bPricesValid,'tariffComplete'=>$bTariffsComplete,
+            'tariffSources'=>$vSources,'shellyCalibration'=>$vCalibration,
+            'partialPrice'=>$vPartial,'incompleteSchedules'=>$vIncompleteSchedules];
 
         // The hypothetical uses LINEA house load in the same quarter hours.
         // It assumes the entire house load would otherwise be bought from the grid.
-        $from = (int)$records[0]['ts'];
-        $to = (int)$records[count($records)-1]['ts'] + 900;
-        $history = $this->history->getHistory($from,$to-1);
-        $resolution = (int)$history['resolutionSec'];
-        $samples = [];
-        if (in_array($resolution,[300,900],true)) {
-            foreach ($history['points'] as $point) {
-                $ts = (int)$point['ts'];
-                $quarter = intdiv($ts,900)*900;
-                if ($quarter < $from || $quarter >= $to) continue;
+        $sFrom = (int)$vRecords[0]['ts'];
+        $sTo = (int)$vRecords[count($vRecords)-1]['ts'] + 900;
+        $history = $this->history->getHistory($sFrom,$sTo-1);
+        $vResolution = (int)$history['resolutionSec'];
+        $vSamples = [];
+        if (in_array($vResolution,[300,900],true)) {
+            foreach ($history['points'] as $vPoint) {
+                $nTs = (int)$vPoint['ts'];
+                $vQuarter = intdiv($nTs,900)*900;
+                if ($vQuarter < $sFrom || $vQuarter >= $sTo) continue;
                 // A collected bucket without a usable house reading is not
                 // evidence that the house consumed zero energy.
-                if (($point['houseW'] ?? null) === null) continue;
-                $samples[$quarter] ??= ['coverage'=>0,'houseKWh'=>0.0,'pvKWh'=>0.0,'pvCoverage'=>0];
-                $samples[$quarter]['coverage'] += min($resolution,max(0,(int)$point['coverageSec']));
-                $samples[$quarter]['houseKWh'] += (float)($point['houseKWh'] ?? 0);
-                if (($point['pvW'] ?? null) !== null) {
-                    $samples[$quarter]['pvCoverage'] += min($resolution,max(0,(int)$point['coverageSec']));
-                    $samples[$quarter]['pvKWh'] += (float)($point['pvKWh'] ?? 0);
+                if (($vPoint['houseW'] ?? null) === null) continue;
+                $vSamples[$vQuarter] ??= ['coverage'=>0,'houseKWh'=>0.0,'pvKWh'=>0.0,'pvCoverage'=>0];
+                $vSamples[$vQuarter]['coverage'] += min($vResolution,max(0,(int)$vPoint['coverageSec']));
+                $vSamples[$vQuarter]['houseKWh'] += (float)($vPoint['houseKWh'] ?? 0);
+                if (($vPoint['pvW'] ?? null) !== null) {
+                    $vSamples[$vQuarter]['pvCoverage'] += min($vResolution,max(0,(int)$vPoint['coverageSec']));
+                    $vSamples[$vQuarter]['pvKWh'] += (float)($vPoint['pvKWh'] ?? 0);
                 }
             }
         }
-        $coveredSeconds = 0; $house = 0.0; $pv = 0.0; $houseVariable = 0.0;
-        foreach ($intervals as &$interval) {
-            $sample = $samples[$interval['ts']] ?? null;
-            $interval['houseKWh'] = $sample && $sample['coverage'] > 0 ? round($sample['houseKWh'],4) : null;
-            $interval['pvKWh'] = $sample && $sample['pvCoverage'] > 0 ? round($sample['pvKWh'],4) : null;
-            $interval['lineaCoveragePct'] = $sample ? round(min(900,$sample['coverage'])/9,1) : 0;
-            $unitPrice = $interval['tariff'] === 'NT' ? $interval['priceNt'] : $interval['priceVt'];
-            $interval['hypotheticalVariableCzk'] = $unitPrice !== null && $interval['tariff'] !== null
-                && $sample && $sample['coverage'] >= 896
-                ? round($sample['houseKWh'] * $unitPrice,2) : null;
-            if (!$sample || $sample['coverage'] <= 0) continue;
-            $coveredSeconds += min(900,$sample['coverage']);
-            $house += $sample['houseKWh'];
-            $pv += $sample['pvKWh'];
-            if ($priced) $houseVariable += $sample['houseKWh'] * $unitPrice;
+        $nCoveredSeconds = 0; $vHouse = 0.0; $vPv = 0.0; $vHouseVariable = 0.0;
+        foreach ($aIntervals as &$vInterval) {
+            $vSample = $vSamples[$vInterval['ts']] ?? null;
+            $vInterval['houseKWh'] = $vSample && $vSample['coverage'] > 0 ? round($vSample['houseKWh'],4) : null;
+            $vInterval['pvKWh'] = $vSample && $vSample['pvCoverage'] > 0 ? round($vSample['pvKWh'],4) : null;
+            $vInterval['lineaCoveragePct'] = $vSample ? round(min(900,$vSample['coverage'])/9,1) : 0;
+            $vUnitPrice = $vInterval['tariff'] === 'NT' ? $vInterval['priceNt'] : $vInterval['priceVt'];
+            $vInterval['hypotheticalVariableCzk'] = $vUnitPrice !== null && $vInterval['tariff'] !== null
+                && $vSample && $vSample['coverage'] >= 896
+                ? round($vSample['houseKWh'] * $vUnitPrice,2) : null;
+            if (!$vSample || $vSample['coverage'] <= 0) continue;
+            $nCoveredSeconds += min(900,$vSample['coverage']);
+            $vHouse += $vSample['houseKWh'];
+            $vPv += $vSample['pvKWh'];
+            if ($vPriced) $vHouseVariable += $vSample['houseKWh'] * $vUnitPrice;
         }
-        unset($interval);
-        $coverage = $records !== [] ? $coveredSeconds/(count($records)*900) : 0;
-        $summary['houseCoveredKWh'] = round($house,3);
-        $summary['pvCoveredKWh'] = round($pv,3);
-        $summary['lineaCoveragePct'] = round($coverage*100,2);
-        $summary['hypotheticalVariableCzk'] = $priced && $coverage >= .995 ? round($houseVariable,2) : null;
-        $summary['differenceCzk'] = $summary['hypotheticalVariableCzk'] === null ? null
-            : round($summary['hypotheticalVariableCzk'] - $variable,2);
-        $result['month'] = ['summary'=>$summary,'daily'=>array_values($daily),'intervals'=>$intervals];
-        return $result;
+        unset($vInterval);
+        $nCoverage = $vRecords !== [] ? $nCoveredSeconds/(count($vRecords)*900) : 0;
+        $vSummary['houseCoveredKWh'] = round($vHouse,3);
+        $vSummary['pvCoveredKWh'] = round($vPv,3);
+        $vSummary['lineaCoveragePct'] = round($nCoverage*100,2);
+        $vSummary['hypotheticalVariableCzk'] = $vPriced && $nCoverage >= .995 ? round($vHouseVariable,2) : null;
+        $vSummary['differenceCzk'] = $vSummary['hypotheticalVariableCzk'] === null ? null
+            : round($vSummary['hypotheticalVariableCzk'] - $vVariable,2);
+        $vResult['month'] = ['summary'=>$vSummary,'daily'=>array_values($vDaily),'intervals'=>$aIntervals];
+        return $vResult;
     }
 }

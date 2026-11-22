@@ -1,5 +1,5 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
-const source=fs.readFileSync(path.join(__dirname,'../../src/js/app-1.0.0.js'),'utf8');
+const source=fs.readFileSync(path.join(__dirname,'../../src/js/app-1.0.1.js'),'utf8');
 const model=source.slice(source.indexOf('function makeHistorySurface('),source.indexOf('function h3Schedule('));
 const sandbox={Intl,Date,isValue:v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v))};vm.createContext(sandbox);vm.runInContext(model,sandbox);
 const build=sandbox.makeHistorySurface,ts=Date.UTC(2026,8,1,10)/1000;

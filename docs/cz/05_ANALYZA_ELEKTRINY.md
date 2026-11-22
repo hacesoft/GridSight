@@ -4,7 +4,7 @@
 
 ## Části aplikace
 
-Karta Analýza obsahuje **Reporty ED.G**, **Smlouvy a ceny**, **Nastavení HDO**, **Analýzu** a **Delta Green**. Administrátor může měnit společná data; ostatní přihlášení uživatelé je mohou prohlížet.
+Karta Analýza obsahuje **Reporty EG.D**, **Smlouvy a ceny**, **Nastavení HDO**, **Analýzu** a **Delta Green**. Administrátor může měnit společná data; ostatní přihlášení uživatelé je mohou prohlížet.
 
 ## Reporty EG.D
 

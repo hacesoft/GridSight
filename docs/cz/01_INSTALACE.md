@@ -10,7 +10,34 @@ Rozbalte **zdrojový ZIP** do samostatné složky na NASu. Ze složky obsahujíc
 sudo sh install.sh
 ```
 
-Úspěšný instalátor vypíše název, předchozí a novou verzi, velikost instalace a „Hotovo“. Při chybě vypíše celý protokol. Zkontroluje požadavky, připraví kód mimo `custom_apps`, ověří PHP, bezpečně zastaví a znovu spustí sběrač a vytvoří chybějící tabulky nebo sloupce. Existující historii nepřejmenovává, nekopíruje ani nemaže. Zálohu původního kódu ukládá mimo `custom_apps`; kontejner Nextcloudu nerestartuje.
+Úspěšný instalátor vypisuje **průběžně 18 kroků na samostatných řádcích** (`[01/18] … OK` až `[18/18] … OK`) stejně jako referenční FamilyTree. Nejde o odložený souhrn. V závěru vypíše název, předchozí a novou verzi, velikost instalace a „Hotovo“. Při chybě oznámí neúspěšný krok, diagnostiku a pokus o bezpečnou obnovu předchozího stavu. Samotné kroky nespouštějte ručně ani je nepřeskakujte.
+
+```text
+[01/18] Kontrola oprávnění a Dockeru ..... OK
+[02/18] Vyhledání kontejnerů Nextcloud ..... OK
+[03/18] Kontrola duplicitních kopií aplikace ..... OK
+[04/18] Kontrola kompatibility Nextcloud ..... OK
+[05/18] Kontrola zdrojů, verze a databáze ..... OK
+[06/18] Ověření HC Shared App Core ..... OK
+[07/18] Příprava adresáře záloh a aktuálního stavu ..... OK
+[08/18] Příprava izolované instalační kopie ..... OK
+[09/18] Kontrola PHP syntaxe nové kopie ..... OK
+[10/18] Pozastavení sběrače historie LINEA ..... OK
+[11/18] Pozastavení předchozí aplikace ..... OK
+[12/18] Záloha původní aplikace ..... OK
+[13/18] Nahrání aplikace do webového kontejneru ..... OK
+[14/18] Synchronizace s cron kontejnerem ..... OK
+[15/18] Obnovení PHP cache a kontrola databáze ..... OK
+[16/18] Zapnutí aplikace a migrace ..... OK
+[17/18] Ověření instalované verze a souhrn ..... OK
+[18/18] Obnovení sběrače historie LINEA ..... OK
+Aplikace: GridSight
+Verze: 1.0.1 -> 1.0.1
+Velikost instalace: 1720 KiB
+Hotovo.
+```
+
+*Ukázka výpisu; předchozí verze a velikost se podle instalace mohou lišit.* Zkontroluje požadavky, připraví kód mimo `custom_apps`, ověří PHP, bezpečně zastaví a znovu spustí sběrač a vytvoří chybějící tabulky nebo sloupce. Existující historii nepřejmenovává, nekopíruje ani nemaže. Zálohu původního kódu ukládá mimo `custom_apps`; kontejner Nextcloudu nerestartuje.
 
 V kartě **Nastavení** zadejte URL LINEA API. Po instalaci zkontrolujte spojení a stav sběrače v kartě **Sběr**. Pro diagnostiku sběrače ze zdrojového adresáře slouží:
 
