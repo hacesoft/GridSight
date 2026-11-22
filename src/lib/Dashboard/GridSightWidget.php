@@ -71,7 +71,7 @@ class GridSightWidget implements IWidget {
      * @return void bez návratové hodnoty; widget je připraven přímo přes rozhraní dashboardu
      */
     public function load(): void {
-        Util::addScript(Application::APP_ID, 'dashboard-1.0.1');
-        Util::addStyle(Application::APP_ID, 'style-1.0.1');
+        Util::addScript(Application::APP_ID, 'dashboard-1.0.2');
+        Util::addStyle(Application::APP_ID, 'style-1.0.2');
     }
 }

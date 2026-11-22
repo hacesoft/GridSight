@@ -1,6 +1,6 @@
 [🇨🇿 **Česky**](08_API_A_DATOVA_POLE.md) | [🇬🇧 English](../en/08_API_AND_DATA_FIELDS.md)
 
-# Referenční dokumentace API a datových položek GridSight 1.0.1
+# Referenční dokumentace API a datových položek GridSight 1.0.2
 
 Tato stránka popisuje **skutečně implementované HTTP trasy GridSight** v Nextcloudu a význam polí čtených z externího LINEA API (schéma `1`). GridSight LINEA pouze čte; tato aplikace **nemění nastavení FVE ani ESS**. Kompletní upstream specifikace LINEA/Node-RED je samostatná; zde jsou přesně dokumentované položky, které GridSight používá, nikoli tvrzení o všech polích upstream služby.
 

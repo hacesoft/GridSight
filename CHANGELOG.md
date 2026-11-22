@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.2 — 2026-11-22
+
+- Aligned English and Czech README structure with the Hacesoft FamilyTree documentation layout.
+- Display the existing GridSight screenshot directly from GitHub in the README and overview guides.
+- Use the same GitHub screenshot for the App Store image and its small thumbnail.
+- Updated versioned assets for reliable cache refresh after upgrading; monitoring and API behavior remain unchanged.
+
 ## 1.0.1 — 2026-11-21
 
 - Documented internal Hungarian-style variable prefixes and added Czech input/output contracts for functions and callbacks.

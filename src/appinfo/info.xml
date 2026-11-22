@@ -265,7 +265,7 @@ Napelemes rendszer, akkumulátor, előzmények, SPOT-árak és villamosenergia-k
 - Nextcloud 35, PHP 8.3+, bekapcsolt HC Shared App Core 0.18.8+ és kompatibilis, csak olvasható LINEA API (1. séma).
 - Részletes használati és telepítési útmutatók cseh és angol nyelven: https://github.com/hacesoft/GridSight
 </description>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <licence>AGPL-3.0-or-later</licence>
     <author homepage="https://github.com/hacesoft">hacesoft</author>
     <namespace>HcGridSight</namespace>
@@ -274,7 +274,7 @@ Napelemes rendszer, akkumulátor, előzmények, SPOT-árak és villamosenergia-k
     <website>https://github.com/hacesoft/GridSight</website>
     <bugs>https://github.com/hacesoft/GridSight/issues</bugs>
     <repository>https://github.com/hacesoft/GridSight</repository>
-    <screenshot>https://github.com/user-attachments/assets/6cae686b-1849-446d-9b7d-cb213ddca6f2</screenshot>
+    <screenshot small-thumbnail="https://raw.githubusercontent.com/hacesoft/GridSight/main/screenshot/01.png">https://raw.githubusercontent.com/hacesoft/GridSight/main/screenshot/01.png</screenshot>
     <dependencies>
         <php min-version="8.3" />
         <nextcloud min-version="35" max-version="35"/>

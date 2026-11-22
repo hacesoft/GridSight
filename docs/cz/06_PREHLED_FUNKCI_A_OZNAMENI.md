@@ -1,6 +1,6 @@
 [🇨🇿 **Česky**](06_PREHLED_FUNKCI_A_OZNAMENI.md) | [🇬🇧 English](../en/06_FEATURES_AND_NOTICES.md)
 
-# Podrobný přehled funkcí a oznámení GridSight 1.0.1
+# Podrobný přehled funkcí a oznámení GridSight 1.0.2
 
 Tato příručka shrnuje **skutečně implementované funkce** aplikace a jejich hranice. GridSight načítá LINEA API v režimu **pouze pro čtení**. Příkazy pro řízení FVE, ESS, měničů ani baterie neodesílá. Informace jsou dostupné pouze v rozsahu, který poskytují zdrojové služby; chybějící údaj je označen `—` a nemusí znamenat fyzickou nulu.
 

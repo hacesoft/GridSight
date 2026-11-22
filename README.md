@@ -1,67 +1,35 @@
-[🇨🇿 Česky](README_CZ.md) | [🇬🇧 **English**](README.md)
+# Hacesoft GridSight – Energy monitoring for Nextcloud
 
+**English** · [Česky](README_CZ.md)
 
-# GridSight 1.0.1
-
-GridSight is a Nextcloud 35 application for monitoring photovoltaic production, household consumption, battery storage, grid flows and electricity prices. It reads the LINEA API, stores measurement history and compares it with monthly EG.D reports. It does not control equipment or send commands to change ESS settings.
-
-
-![GridSight dashboard](https://github.com/user-attachments/assets/6cae686b-1849-446d-9b7d-cb213ddca6f2)
+**GridSight** is a read-only monitoring application for Nextcloud 35. It brings photovoltaic production, household electricity use, grid flows, battery status, electricity prices and measurement history into one workspace. Energy telemetry comes from a compatible LINEA API; no remote equipment-control commands are sent.
 
 ## Features
 
-- LIVE: energy flows, battery, SPOT prices, forecasts and available devices.
-- History: time charts, energy totals, date ranges and per-user series selection.
-- ESS: states and settings published by LINEA.
-- Collector and events: collector health and recorded state changes.
-- Analysis: EG.D reports, contracts and prices, HDO schedules, purchase costs and comparison with a home without PV.
-- Delta Green: manual sale statements compared with gross calculated SPOT revenue.
+- **LIVE overview:** photovoltaic MPPT strings, home consumption, imports and exports, battery and ESS states.
+- **History and charts:** recorded energy data, time-range selection, daily totals and interactive 2D/3D charts.
+- **SPOT prices and forecasts:** hourly market prices, price threshold, solar/consumption forecasts and available weather data.
+- **Optional devices:** Daikin climate, NUT UPS, Shelly devices and sensors when provided by LINEA.
+- **Collection and events:** collector/database status, recorded state changes and a clear notice during temporary LINEA API outages.
+- **Electricity analysis:** EG.D XLSX imports, contracts, high/low tariffs, HDO schedules, cost calculations and comparison without PV.
+- **Delta Green settlements:** manual sale statements and comparison with estimated gross SPOT revenue.
+- **Everyday use:** responsive UI, light/dark Nextcloud theme and personal chart settings; 12 interface languages.
 
-## Requirements and installation
+## Screenshots
 
-Nextcloud 35, PHP 8.3 or newer as declared in `src/appinfo/info.xml`, enabled Shared App Core `>= 0.18.8`, and a reachable LINEA API with schema `1`. The technical app ID is `hc_gridsight`.
+![GridSight LIVE energy dashboard](https://raw.githubusercontent.com/hacesoft/GridSight/main/screenshot/01.png)
 
-The source package contains the application in `src/`, installer scripts and documentation. For the supported Synology/Docker environment, extract it and run from the project root:
+## Getting started
 
-```sh
-sudo sh install.sh
-```
-
-Uninstall with `sudo sh uninstall.sh`; read the [installation guide](docs/en/01_INSTALLATION.md) first. One Nextcloud baseline migration creates the initial schema. The installer checks and adds missing tables/columns without deleting measurements.
-
-The required dependency is available in the [Hacesoft Core repository](https://github.com/hacesoft/core). Install and enable it before installing GridSight.
+Install the signed release from the [Nextcloud App Store](https://apps.nextcloud.com/apps/hc_gridsight). GridSight requires **Hacesoft Shared App Core 0.18.8 or later**, Nextcloud 35, PHP 8.3+ and a compatible read-only LINEA API (schema 1). See the [installation and requirements guide](docs/en/01_INSTALLATION.md). The `install.sh` source installer is intended for a supported Synology/Docker environment, not as the normal App Store installation method.
 
 ## Documentation
 
-- [Overview](docs/en/README.md)
-- [Installation and operation](docs/en/01_INSTALLATION.md)
-- [Usage](docs/en/02_USAGE.md)
-- [Data and history](docs/en/03_DATA_AND_HISTORY.md)
-- [SPOT calculations](docs/en/04_SPOT.md)
-- [Electricity analysis](docs/en/05_ELECTRICITY_ANALYSIS.md)
-- [Full feature and notification reference](docs/en/06_FEATURES_AND_NOTICES.md)
-- [API and data field reference](docs/en/08_API_AND_DATA_FIELDS.md)
+- [Application overview](docs/en/README.md) · [Installation and operation](docs/en/01_INSTALLATION.md)
+- [LIVE interface and controls](docs/en/02_USAGE.md) · [Data, history and charts](docs/en/03_DATA_AND_HISTORY.md)
+- [SPOT pricing and estimates](docs/en/04_SPOT.md) · [Electricity and EG.D analysis](docs/en/05_ELECTRICITY_ANALYSIS.md)
+- [Features and notifications](docs/en/06_FEATURES_AND_NOTICES.md) · [LINEA and Nextcloud API / data field reference](docs/en/08_API_AND_DATA_FIELDS.md)
 
-## Source code and private data
+## Project
 
-The public source archive includes GridSight code, installation helpers and Czech/English documentation. It does not include users' measurements, uploaded contracts, credentials or imported XLSX files. See the [API and data field reference](docs/en/08_API_AND_DATA_FIELDS.md) for endpoint and payload semantics.
-
-License: AGPL-3.0-or-later; see [LICENSE](LICENSE).
-
-## Languages
-
-The application UI supports all 11 languages: Czech (`cs`), English (`en`), German (`de`), Spanish (`es`), French (`fr`), Italian (`it`), Dutch (`nl`), Polish (`pl`), Portuguese (`pt`), Slovak (`sk`) and Ukrainian (`uk`). Unsupported languages and individual missing translations fall back to English (EN). Every catalog has the same complete key set and preserves message placeholders. Text returned directly by the server or Core components follows those services’ localization. User and technical guides are available in Czech and English. Hungarian (`hu`) is included as a complete additional UI catalog with the same 594 entries as all 11 required languages; technical identifiers and product names remain unchanged.
-
-
-
-## Update checks
-
-About checks both GridSight (`hacesoft/GridSight`) and the required Core (`hacesoft/core`). Checks read `src/appinfo/info.xml` on each repository’s default branch, validate the app ID and compare `<version>` with the installed version. Archive filenames in `release/` are only a fallback. Successful results are cached by Core for 6 hours; opening About triggers the check, with no background polling. See the [Core reference documentation](https://github.com/hacesoft/core/blob/main/docs/en/CORE_REFERENCE.md) for exact endpoints, selection rules and diagnostics.
-
-## History: 2D and 3D
-
-History has a 2D/3D switch sharing all period presets from one hour to all data. Select one 3D parameter; the graph updates automatically. Axes show Prague local time of day, date and value (W, %, °C or CZK/kWh). These are historical averages, not daily kWh totals. Long periods are reduced to at most 64 rows and 96 time columns without modifying stored data. Available samples in each cell are averaged; partial gaps within a populated cell are not separately visualized. Empty cells use black, distinct from measured zero. Daily aggregates cannot reconstruct missing intraday detail.
-
-Customize low/high/gap colors. Smoothing defaults to zero and changes display only, leaving empty cells empty. Hover shows the original cell mean and a representative sample timestamp. Drag rotates; Shift changes the roll angle; right drag pans; wheel zooms. Touch supports one-finger rotation and two-finger zoom. Reset restores the view. Rendering uses local browser Canvas with no external chart service.
-
-The graph uses the remaining viewport height. Settings include a per-user inverted vertical mouse and Up/Down arrow preference. Focus the graph to rotate with arrow keys; Shift controls roll. Home or the home icon restores the view.
+[Nextcloud App Store](https://apps.nextcloud.com/apps/hc_gridsight) · [Changelog](CHANGELOG.md) · [Report an issue](https://github.com/hacesoft/GridSight/issues) · [License (AGPL-3.0-or-later)](LICENSE)

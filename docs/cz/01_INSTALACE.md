@@ -32,7 +32,7 @@ sudo sh install.sh
 [17/18] Ověření instalované verze a souhrn ..... OK
 [18/18] Obnovení sběrače historie LINEA ..... OK
 Aplikace: GridSight
-Verze: 1.0.1 -> 1.0.1
+Verze: 1.0.1 -> 1.0.2
 Velikost instalace: 1720 KiB
 Hotovo.
 ```

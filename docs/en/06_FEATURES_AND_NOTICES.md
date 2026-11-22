@@ -1,6 +1,6 @@
 [🇨🇿 Česky](../cz/06_PREHLED_FUNKCI_A_OZNAMENI.md) | [🇬🇧 **English**](06_FEATURES_AND_NOTICES.md)
 
-# GridSight 1.0.1 — complete feature and notification reference
+# GridSight 1.0.2 — complete feature and notification reference
 
 GridSight is a **read-only** Nextcloud client for LINEA API; it does not send PV, ESS, inverter, battery or climate control commands. Availability of readings depends on the underlying API. An unavailable reading is shown as `—`, not silently converted to zero.
 

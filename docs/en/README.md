@@ -4,7 +4,11 @@
 
 GridSight is a read-only Nextcloud 35 application for LINEA API. It displays live solar production, grid flow, battery and ESS state, SPOT prices, other devices and historical measurements. It does not send control commands to the plant.
 
-Its technical app ID is `hc_gridsight`. It requires enabled Shared App Core `>= 0.18.8` and a reachable, read-only LINEA API with schema `1`. Install from the **full source ZIP**, including `install.sh`, `scripts/` and `src/`.
+Its technical app ID is `hc_gridsight`. It requires enabled Shared App Core `>= 0.18.8` and a reachable, read-only LINEA API with schema `1`. For normal use, install the signed release from the **Nextcloud App Store**. The full source ZIP and `install.sh` are intended for supported Synology/Docker installations.
+
+## Screenshot
+
+![GridSight LIVE energy dashboard](https://raw.githubusercontent.com/hacesoft/GridSight/main/screenshot/01.png)
 
 1. [Installation and operation](01_INSTALLATION.md)
 2. [Using GridSight](02_USAGE.md)

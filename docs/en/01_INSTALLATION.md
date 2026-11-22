@@ -32,7 +32,7 @@ The installer **streams 18 numbered steps** (`[01/18] … OK` through `[18/18] �
 [17/18] Ověření instalované verze a souhrn ..... OK
 [18/18] Obnovení sběrače historie LINEA ..... OK
 Aplikace: GridSight
-Verze: 1.0.1 -> 1.0.1
+Verze: 1.0.1 -> 1.0.2
 Velikost instalace: 1720 KiB
 Hotovo.
 ```

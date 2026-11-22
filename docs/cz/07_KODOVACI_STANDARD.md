@@ -1,4 +1,4 @@
-# GridSight 1.0.1 – dokumentace zdrojového kódu a maďarská notace
+# GridSight 1.0.2 – dokumentace zdrojového kódu a maďarská notace
 
 Tento dokument vysvětluje pravidla pojmenovávání proměnných ve zdrojovém kódu, nikoli jazykové překlady. Přehled předpon je současně vložen přímo na začátek každého PHP nebo JavaScript souboru, v němž se příslušná notace používá.
 

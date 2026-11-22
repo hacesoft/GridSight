@@ -8,9 +8,9 @@ use OCP\Util;
 // Shared App Core 0.18.8: jediný podporovaný statický start.
 // Pořadí assetů je závazné: Core CSS, app CSS, Core JS, app JS.
 Util::addStyle('hc_shared_app_core', 'workspace');
-Util::addStyle(Application::APP_ID, 'style-1.0.1');
+Util::addStyle(Application::APP_ID, 'style-1.0.2');
 Util::addScript('hc_shared_app_core', 'hc_shared_app_core');
-Util::addScript(Application::APP_ID, 'app-1.0.1');
+Util::addScript(Application::APP_ID, 'app-1.0.2');
 ?>
 <div
     id="linea-monitor"

@@ -1,6 +1,6 @@
 [🇨🇿 Česky](../cz/08_API_A_DATOVA_POLE.md) | [🇬🇧 **English**](08_API_AND_DATA_FIELDS.md)
 
-# GridSight 1.0.1 API and data field reference
+# GridSight 1.0.2 API and data field reference
 
 This reference lists the actual Nextcloud routes and the LINEA fields consumed by GridSight. GridSight reads, but never controls, LINEA / FVE / ESS equipment. It is not a complete specification for upstream Node-RED. API routes are prefixed with `/apps/hc_gridsight` and require an authenticated Nextcloud application session; writing settings or shared analysis data requires appropriate authorization and Nextcloud request protection.
 

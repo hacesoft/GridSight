@@ -1,5 +1,12 @@
 # Přehled změn
 
+## 1.0.2 — 2026-11-22
+
+- Sjednocena struktura českého a anglického README s dokumentačním stylem Hacesoft FamilyTree.
+- Zobrazen existující snímek GridSight přímo z GitHubu v README a přehledových návodech.
+- Stejný snímek se používá pro App Store včetně malého náhledu.
+- Aktualizována verze CSS/JS kvůli spolehlivému obnovení cache; chování monitoringu a API zůstává beze změny.
+
 ## 1.0.1 — 2026-11-21
 
 - Upřesněna maďarská notace interních proměnných a doplněny české komentáře vstupů/výstupů funkcí a callbacků.
